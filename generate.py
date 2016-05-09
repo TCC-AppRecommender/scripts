@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
-import random
 import commands
+import random
+import sys
 
 
 def get_header_message(actual_time, submission_id):
@@ -39,7 +40,7 @@ def create_submission(pkgs, actual_time, submission_id, folder_path):
     save_submission(header_message, pkgs_time, file_path)
 
 
-def run(number_of_submissions):
+def run(number_of_submissions, folder_path):
     folder_path = '/home/luciano/Documents/unb/tcc/popcon_generate_data/'
     actual_time = random.randint(100000000, 1000000000)
     pkgs = commands.getoutput('apt-mark showmanual').splitlines()
@@ -47,5 +48,16 @@ def run(number_of_submissions):
     for submission_id in range(1, number_of_submissions + 1):
         create_submission(pkgs, actual_time, submission_id, folder_path)
 
+
+def usage():
+    print("USAGE: %s [number_of_submissions] [folder_path]" % (sys.argv[0]))
+
+
 if __name__ == '__main__':
-    run(10)
+    try:
+        folder_path = sys.argv[2]
+        number_of_submissions = int(sys.argv[1])
+        run(number_of_submissions, folder_path)
+    except:
+        usage()
+        sys.exit()
