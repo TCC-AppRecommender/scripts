@@ -1,16 +1,2 @@
 *.pyc
-TODO
-doc/doxygen-1.7.3
-doc/html/
-popcon-data.tgz
-popcon-data/
-psql-out
-udd-import.log
-udd.sql.gz
-src/web/submissions/
-*.log
-.vagrant/
-*.swp
-apprecommender.egg-info/
-src/tests/test_data/.sample_axi/
 *.txt
