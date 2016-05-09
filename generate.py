@@ -12,8 +12,7 @@ def get_header_message(actual_time, submission_id):
     return header_message
 
 
-def get_pkgs_time(actual_time):
-    pkgs = commands.getoutput('apt-mark showmanual').splitlines()
+def get_pkgs_time(pkgs, actual_time):
     pkgs_time = {}
     for pkg in pkgs:
         last_time = random.randint(1, actual_time)
@@ -33,18 +32,20 @@ def save_submission(header_message, pkgs_time, file_path):
             text.write(line.format(times[0], times[1], pkg))
 
 
-def create_submission(actual_time, submission_id, folder_path):
+def create_submission(pkgs, actual_time, submission_id, folder_path):
     header_message = get_header_message(actual_time, submission_id)
-    pkgs_time = get_pkgs_time(actual_time)
+    pkgs_time = get_pkgs_time(pkgs, actual_time)
     file_path = "{}{}.txt".format(folder_path, submission_id)
     save_submission(header_message, pkgs_time, file_path)
 
 
-def main():
+def run(number_of_submissions):
     folder_path = '/home/luciano/Documents/unb/tcc/popcon_generate_data/'
     actual_time = random.randint(100000000, 1000000000)
-    create_submission(actual_time, 1, folder_path)
+    pkgs = commands.getoutput('apt-mark showmanual').splitlines()
 
+    for submission_id in range(1, number_of_submissions + 1):
+        create_submission(pkgs, actual_time, submission_id, folder_path)
 
 if __name__ == '__main__':
-    main()
+    run(10)
