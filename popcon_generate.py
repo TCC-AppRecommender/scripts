@@ -40,11 +40,22 @@ def create_submission(pkgs, actual_time, submission_id, folder_path):
     save_submission(header_message, pkgs_time, file_path)
 
 
+def get_pkgs():
+    pkgs = commands.getoutput('apt-mark showmanual').splitlines()
+    used_pkgs = []
+
+    for pkg in pkgs:
+        number = random.randint(0, 100)
+        if number > 30:
+            used_pkgs.append(pkg)
+
+    return used_pkgs
+
 def run(number_of_submissions, folder_path):
     actual_time = random.randint(100000000, 1000000000)
-    pkgs = commands.getoutput('apt-mark showmanual').splitlines()
 
     for submission_id in range(1, number_of_submissions + 1):
+        pkgs = get_pkgs()
         create_submission(pkgs, actual_time, submission_id, folder_path)
 
 
