@@ -41,7 +41,6 @@ def create_submission(pkgs, actual_time, submission_id, folder_path):
 
 
 def run(number_of_submissions, folder_path):
-    folder_path = '/home/luciano/Documents/unb/tcc/popcon_generate_data/'
     actual_time = random.randint(100000000, 1000000000)
     pkgs = commands.getoutput('apt-mark showmanual').splitlines()
 
