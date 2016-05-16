@@ -47,11 +47,22 @@ def get_pkgs():
 
     return pkgs
 
+def filter_pkgs(pkgs):
+    filtered_pkgs = {}
+
+    for pkg, path in pkgs.iteritems():
+        number = random.randint(0, 100)
+        if number > 50:
+            filtered_pkgs[pkg] = path
+
+    return filtered_pkgs
+
 def run(number_of_submissions, folder_path):
     actual_time = random.randint(100000000, 1000000000)
     pkgs = get_pkgs()
 
     for submission_id in range(1, number_of_submissions + 1):
+        pkgs = filter_pkgs(pkgs)
         create_submission(pkgs, actual_time, submission_id, folder_path)
 
 
