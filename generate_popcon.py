@@ -43,7 +43,7 @@ def create_submission(pkgs, actual_time, submission_id, folder_path):
 
 def get_pkgs():
     lines = commands.getoutput('./popularity-contest').splitlines()
-    pkgs = {line.split()[-2]: line.split()[-1] for line in lines[1:]}
+    pkgs = {line.split()[-2]: line.split()[-1] for line in lines[1:-1]}
 
     return pkgs
 
@@ -62,8 +62,8 @@ def run(number_of_submissions, folder_path):
     pkgs = get_pkgs()
 
     for submission_id in range(1, number_of_submissions + 1):
-        pkgs = filter_pkgs(pkgs)
-        create_submission(pkgs, actual_time, submission_id, folder_path)
+        filtered_pkgs = filter_pkgs(pkgs)
+        create_submission(filtered_pkgs, actual_time, submission_id, folder_path)
 
 
 def usage():
