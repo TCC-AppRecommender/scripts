@@ -5,6 +5,25 @@ import random
 import sys
 
 
+def get_submission_id(submission_number):
+    submission_str = str(submission_number)[::-1]
+
+    submission_id = ""
+    alphabet = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l',
+                'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'x', 'w',
+                'y', 'z']
+    alphabet_index = 0
+
+    for index, character in enumerate(submission_str):
+        submission_id = alphabet[index] + submission_id
+
+        submission_id = character + submission_id
+
+    submission_id = submission_id + 'popcon'
+
+    return submission_id
+
+
 def get_header_message(actual_time, submission_id):
     header_message = "POPULARITY-CONTEST-0 TIME:{} ID:{}popcon ARCH:amd64" \
                      " POPCONVER: VENDOR:Debian"
@@ -33,11 +52,11 @@ def save_submission(header_message, pkgs, pkgs_time, file_path):
             text.write(line.format(pkgs_time[pkg][0], pkgs_time[pkg][1],
                                    pkg, path))
 
-
-def create_submission(pkgs, actual_time, submission_id, folder_path):
+def create_submission(pkgs, actual_time, submission_number, folder_path):
+    submission_id = get_submission_id(submission_number)
     header_message = get_header_message(actual_time, submission_id)
     pkgs_time = get_pkgs_time(pkgs, actual_time)
-    file_path = "{}{}popcon".format(folder_path, submission_id)
+    file_path = "{}{}".format(folder_path, submission_id)
     save_submission(header_message, pkgs, pkgs_time, file_path)
 
 
@@ -61,9 +80,9 @@ def run(number_of_submissions, folder_path):
     actual_time = random.randint(100000000, 1000000000)
     pkgs = get_pkgs()
 
-    for submission_id in range(1, number_of_submissions + 1):
+    for submission_number in range(1, number_of_submissions + 1):
         filtered_pkgs = filter_pkgs(pkgs)
-        create_submission(filtered_pkgs, actual_time, submission_id, folder_path)
+        create_submission(filtered_pkgs, actual_time, submission_number, folder_path)
 
 
 def usage():
