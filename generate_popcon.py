@@ -5,10 +5,12 @@ import random
 import sys
 
 
+SUBMISSION_SIFIX = 'popcon'
+
+
 def get_submission_id(submission_number):
     submission_str = str(submission_number)[::-1]
 
-    submission_id = ""
     alphabet = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l',
                 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'x', 'w',
                 'y', 'z']
@@ -16,10 +18,9 @@ def get_submission_id(submission_number):
 
     for index, character in enumerate(submission_str):
         submission_id = alphabet[index] + submission_id
-
         submission_id = character + submission_id
 
-    submission_id = submission_id + 'popcon'
+    submission_id = submission_id + SUBMISSION_SIFIX
 
     return submission_id
 
@@ -52,6 +53,7 @@ def save_submission(header_message, pkgs, pkgs_time, file_path):
             text.write(line.format(pkgs_time[pkg][0], pkgs_time[pkg][1],
                                    pkg, path))
 
+
 def create_submission(pkgs, actual_time, submission_number, folder_path):
     submission_id = get_submission_id(submission_number)
     header_message = get_header_message(actual_time, submission_id)
@@ -66,6 +68,7 @@ def get_pkgs():
 
     return pkgs
 
+
 def filter_pkgs(pkgs):
     filtered_pkgs = {}
 
@@ -76,28 +79,27 @@ def filter_pkgs(pkgs):
 
     return filtered_pkgs
 
+
 def run(number_of_submissions, folder_path):
     actual_time = random.randint(100000000, 1000000000)
     pkgs = get_pkgs()
 
     for submission_number in range(1, number_of_submissions + 1):
         filtered_pkgs = filter_pkgs(pkgs)
-        create_submission(filtered_pkgs, actual_time, submission_number, folder_path)
+        create_submission(filtered_pkgs, actual_time, submission_number,
+                          folder_path)
 
 
 def usage():
-    print("USAGE: %s [number_of_submissions] [folder_path]" % (sys.argv[0]))
+    usage_message = "USAGE: {} [number_of_submissions] [folder_to_save]"
+    print usage_message.format(sys.argv[0])
 
 
 if __name__ == '__main__':
-    folder_path = sys.argv[2]
-    number_of_submissions = int(sys.argv[1])
-    run(number_of_submissions, folder_path)
-    # try:
-    #     folder_path = sys.argv[2]
-    #     number_of_submissions = int(sys.argv[1])
-    #     run(number_of_submissions, folder_path)
-    # except:
-    #     usage()
-    #     sys.exit()
-
+    try:
+        folder_path = sys.argv[2]
+        number_of_submissions = int(sys.argv[1])
+        run(number_of_submissions, folder_path)
+    except:
+        usage()
+        sys.exit()
