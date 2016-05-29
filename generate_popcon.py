@@ -16,6 +16,7 @@ def get_submission_id(submission_number):
                 'y', 'z']
     alphabet_index = 0
 
+    submission_id = ""
     for index, character in enumerate(submission_str):
         submission_id = alphabet[index] + submission_id
         submission_id = character + submission_id
