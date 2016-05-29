@@ -134,7 +134,7 @@ while (<PACKAGES>)
 # It's currently being accessed by a process
         $atime = time();
       }
-      if (!defined($bestatime) || $atime >= $bestatime)
+      if (!defined($bestatime) || $atime > $bestatime)
       {
 # Truncate time to reduce informaton leak.
         my $tatime = &trunc_time($atime);
