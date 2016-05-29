@@ -17,8 +17,10 @@ def print_percentage(number, n_numbers, message='Percent', bar_length=40):
     spaces = ' ' * (bar_length - len(hashes))
     percent = int(round(percent * 100))
 
-    percent_message = ("\r{}: [{}] [{} / {}] {}%".format(message,
-        hashes + spaces, number, n_numbers, percent))
+    percent_message = "\r{}: [{}] [{} / {}] {}%".format(message,
+                                                        hashes + spaces,
+                                                        number, n_numbers,
+                                                        percent)
 
     sys.stdout.write(percent_message)
     sys.stdout.flush()
@@ -71,7 +73,7 @@ def read_popcon_file(file_path):
     return popcon_entry
 
 
-def get_popcon_entries(popcon_entries_path):
+def old_get_popcon_entries(popcon_entries_path):
     popcon_files = os.listdir(popcon_entries_path)
     len_files = len(popcon_files)
 
@@ -88,12 +90,49 @@ def get_popcon_entries(popcon_entries_path):
     return popcon_entries
 
 
+def get_popcon_files(popcon_entries_path):
+    folders = os.listdir(popcon_entries_path)
+
+    popcon_files = []
+    for folder in folders:
+        folder_path = os.path.join(popcon_entries_path, folder)
+        file_names = os.listdir(folder_path)
+
+        if type(file_names) is not list:
+            file_names = [file_names]
+
+        for file_name in file_names:
+            popcon_files.append(os.path.join(folder_path, file_name))
+
+    return popcon_files
+
+
+def get_popcon_entries(popcon_entries_path):
+    popcon_files = get_popcon_files(popcon_entries_path)
+
+    popcon_entries = []
+    len_popcon_files = len(popcon_files)
+    for index, popcon_file in enumerate(popcon_files):
+        popcon_entry = read_popcon_file(popcon_file)
+
+        if len(popcon_entry) > 0:
+            popcon_entries.append(popcon_entry)
+
+        print_percentage(index + 1, len_popcon_files)
+
+    return popcon_entries
+
+
 def main():
-    if len(sys.argv) < 2:
-        print "Usage: {} [popcon-entries_path]".format(sys.argv[0])
+    if len(sys.argv) < 4:
+        usage = "Usage: {} [random_state] [n_clusters] [popcon-entries_path]"
+        print usage.format(sys.argv[0])
+        print "\n[options]"
+        print "  random_state - Its a number of random_state of KMeans"
+        print "  n_clusters   - Its the number of clusters are been used"
         exit(1)
 
-    popcon_entries_path = os.path.expanduser(sys.argv[1])
+    popcon_entries_path = os.path.expanduser(sys.argv[3])
 
     print "Loading popcon files:"
     popcon_entries = get_popcon_entries(popcon_entries_path)
@@ -104,10 +143,10 @@ def main():
     print "Creating matrix of users"
     users = get_users(all_pkgs, popcon_entries)
 
-
     print "Creating KMeans data"
-    random_state = 170
-    k_means = KMeans(n_clusters=3, random_state=random_state)
+    n_clusters = int(sys.argv[2])
+    random_state = int(sys.argv[1])
+    k_means = KMeans(n_clusters=n_clusters, random_state=random_state)
     k_means.fit(users)
     users_clusters = k_means.labels_.tolist()
     clusters = k_means.cluster_centers_.tolist()
