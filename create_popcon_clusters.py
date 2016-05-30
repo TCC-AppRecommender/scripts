@@ -6,6 +6,8 @@ import re
 import shutil
 import sys
 
+import numpy as np
+
 from sklearn.cluster import KMeans
 
 
@@ -17,6 +19,8 @@ USERS_CLUSTERS_FILE = BASE_FOLDER + 'users_clusters.txt'
 
 USERS_FOLDER = BASE_FOLDER + 'users/'
 USER_FILE = USERS_FOLDER + 'user_{}.txt'
+
+PERCENT_USERS_FOR_RATE = 0.05
 
 
 def print_percentage(number, n_numbers, message='Percent', bar_length=40):
@@ -52,16 +56,48 @@ def get_users(all_pkgs, popcon_entries):
     return users
 
 
+def get_all_pkgs_rate(users_binary):
+    number_of_users = len(users_binary)
+    matrix_pkgs = np.matrix(users_binary)
+    vector_ones = np.ones((len(users_binary), 1))
+
+    histogram = matrix_pkgs.T.dot(vector_ones)
+    all_pkgs_rate = histogram / number_of_users
+
+    return all_pkgs_rate.T.tolist()[0]
+
+
+def get_filtered_users_pkgs(all_pkgs, users_pkgs, users_binary):
+    number_of_users = len(users_binary)
+
+    all_pkgs_rate = get_all_pkgs_rate(users_binary)
+    min_pkg_rate = number_of_users * PERCENT_USERS_FOR_RATE
+
+    removed_pkgs = [pkg for index, pkg in enumerate(all_pkgs)
+                    if all_pkgs_rate[index] < min_pkg_rate]
+
+    filtered_users_pkgs = []
+    len_users_pkgs = len(users_pkgs)
+    for index, user_pkgs in enumerate(users_pkgs):
+        filtered_user_pkgs = [pkg for pkg in user_pkgs
+                              if pkg not in removed_pkgs]
+
+        filtered_users_pkgs.append(filtered_user_pkgs)
+        print_percentage(index + 1, len_users_pkgs)
+
+    return filtered_users_pkgs
+
+
 def get_all_pkgs(popcon_entries):
     all_pkgs = set()
 
     len_popcon_entries = len(popcon_entries)
 
     for index, popcon_entry in enumerate(popcon_entries):
-        print_percentage(index + 1, len_popcon_entries)
-
         for pkg in popcon_entry:
             all_pkgs.add(pkg)
+
+        print_percentage(index + 1, len_popcon_entries)
 
     all_pkgs = list(sorted(all_pkgs))
     return all_pkgs
@@ -210,6 +246,9 @@ def main():
     print "Creating matrix of users"
     users_pkgs = popcon_entries
     users_binary = get_users(all_pkgs, users_pkgs)
+
+    print "Filtering little used packages"
+    users_pkgs = get_filtered_users_pkgs(all_pkgs, users_pkgs, users_binary)
 
     print "Creating KMeans data"
     n_clusters = int(sys.argv[2])
