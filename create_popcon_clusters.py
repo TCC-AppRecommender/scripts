@@ -117,23 +117,6 @@ def read_popcon_file(file_path):
     return sorted(popcon_entry)
 
 
-def old_get_popcon_entries(popcon_entries_path):
-    popcon_files = os.listdir(popcon_entries_path)
-    len_files = len(popcon_files)
-
-    popcon_entries = []
-    for index, popcon_file in enumerate(popcon_files):
-        popcon_file_path = os.path.join(popcon_entries_path, popcon_file)
-        popcon_entry = read_popcon_file(popcon_file_path)
-
-        if len(popcon_entry) > 0:
-            popcon_entries.append(popcon_entry)
-
-        print_percentage(index + 1, len_files)
-
-    return popcon_entries
-
-
 def get_popcon_files(popcon_entries_path):
     folders = os.listdir(popcon_entries_path)
 
@@ -226,16 +209,7 @@ def save_data(all_pkgs, clusters, users_clusters, users_pkgs):
     save_users(users_pkgs)
 
 
-def main():
-    if len(sys.argv) < 4:
-        usage = "Usage: {} [random_state] [n_clusters] [popcon-entries_path]"
-        print usage.format(sys.argv[0])
-        print "\n[options]"
-        print "  random_state - Its a number of random_state of KMeans"
-        print "  n_clusters   - Its the number of clusters are been used"
-        exit(1)
-
-    popcon_entries_path = os.path.expanduser(sys.argv[3])
+def main(random_state, n_clusters, popcon_entries_path):
 
     print "Loading popcon files:"
     popcon_entries = get_popcon_entries(popcon_entries_path)
@@ -251,8 +225,6 @@ def main():
     users_pkgs = get_filtered_users_pkgs(all_pkgs, users_pkgs, users_binary)
 
     print "Creating KMeans data"
-    n_clusters = int(sys.argv[2])
-    random_state = int(sys.argv[1])
     k_means = KMeans(n_clusters=n_clusters, random_state=random_state)
     k_means.fit(users_binary)
     users_clusters = k_means.labels_.tolist()
@@ -263,4 +235,16 @@ def main():
     print "\nFinish, files saved on: {}".format(BASE_FOLDER)
 
 if __name__ == '__main__':
-    main()
+    if len(sys.argv) < 4:
+        usage = "Usage: {} [random_state] [n_clusters] [popcon-entries_path]"
+        print usage.format(sys.argv[0])
+        print "\n[options]"
+        print "  random_state - Its a number of random_state of KMeans"
+        print "  n_clusters   - Its the number of clusters are been used"
+        exit(1)
+
+    n_clusters = int(sys.argv[2])
+    random_state = int(sys.argv[1])
+    popcon_entries_path = os.path.expanduser(sys.argv[3])
+
+    main(random_state, n_clusters, popcon_entries_path)
