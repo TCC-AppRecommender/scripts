@@ -3,12 +3,20 @@
 import os
 import pickle
 import re
+import shutil
 import sys
 
 from sklearn.cluster import KMeans
 
 
-DATA_FILE = 'knn_data'
+BASE_FOLDER = 'popcon_clusters/'
+
+ALL_PKGS_FILE = BASE_FOLDER + 'all_pkgs.txt'
+CLUSTERS_FILE = BASE_FOLDER + 'clusters.txt'
+USERS_CLUSTERS_FILE = BASE_FOLDER + 'users_clusters.txt'
+
+USERS_FOLDER = BASE_FOLDER + 'users/'
+USER_FILE = USERS_FOLDER + 'user_{}.txt'
 
 
 def print_percentage(number, n_numbers, message='Percent', bar_length=40):
@@ -70,7 +78,7 @@ def read_popcon_file(file_path):
                not re.match(r'.*doc$', pkg) and '/' not in line.split()[2]):
                 popcon_entry.append(pkg)
 
-    return popcon_entry
+    return sorted(popcon_entry)
 
 
 def old_get_popcon_entries(popcon_entries_path):
@@ -123,6 +131,65 @@ def get_popcon_entries(popcon_entries_path):
     return popcon_entries
 
 
+def save_all_pkgs(all_pkgs):
+    with open(ALL_PKGS_FILE, 'w') as text:
+        len_all_pkgs = len(all_pkgs)
+
+        for index, pkg in enumerate(all_pkgs):
+            text.write(pkg + '\n')
+            print_percentage(index + 1, len_all_pkgs)
+
+
+def save_clusters(clusters):
+    with open(CLUSTERS_FILE, 'w') as text:
+        len_clusters = len(clusters)
+
+        for index, cluster in enumerate(clusters):
+            line = '; '.join([str(value) for value in cluster])
+            text.write(line + '\n')
+            print_percentage(index + 1, len_clusters)
+
+
+def save_users(users_pkgs):
+    len_users_pkgs = len(users_pkgs)
+
+    for index, user_pkgs in enumerate(users_pkgs):
+        with open(USER_FILE.format(index), 'w') as text:
+            for pkg in user_pkgs:
+                text.write(pkg + '\n')
+
+        print_percentage(index + 1, len_users_pkgs)
+
+
+def save_users_clusters(users_clusters):
+    with open(USERS_CLUSTERS_FILE, 'w') as text:
+        len_users_clusters = len(users_clusters)
+
+        for index, user_cluster in enumerate(users_clusters):
+            line = "{}: {}".format(index, user_cluster)
+            text.write(line + '\n')
+            print_percentage(index + 1, len_users_clusters)
+
+
+def save_data(all_pkgs, clusters, users_clusters, users_pkgs):
+    if os.path.exists(BASE_FOLDER):
+        shutil.rmtree(BASE_FOLDER)
+    os.makedirs(BASE_FOLDER)
+    os.makedirs(USERS_FOLDER)
+
+    print "Saving all_pkgs.txt"
+    save_all_pkgs(all_pkgs)
+
+    print "Saving clusters.txt"
+    save_clusters(clusters)
+
+    print "Saving users_clusters.txt"
+    save_users_clusters(users_clusters)
+
+    print "Saving users_pkgs.txt"
+    save_users(users_pkgs)
+
+
 def main():
     if len(sys.argv) < 4:
         usage = "Usage: {} [random_state] [n_clusters] [popcon-entries_path]"
@@ -141,22 +208,20 @@ def main():
     all_pkgs = get_all_pkgs(popcon_entries)
 
     print "Creating matrix of users"
-    users = get_users(all_pkgs, popcon_entries)
+    users_pkgs = popcon_entries
+    users_binary = get_users(all_pkgs, users_pkgs)
 
     print "Creating KMeans data"
     n_clusters = int(sys.argv[2])
     random_state = int(sys.argv[1])
     k_means = KMeans(n_clusters=n_clusters, random_state=random_state)
-    k_means.fit(users)
+    k_means.fit(users_binary)
     users_clusters = k_means.labels_.tolist()
     clusters = k_means.cluster_centers_.tolist()
 
-    saved_data = {'all_pkgs': all_pkgs, 'clusters': clusters, 'users': users,
-                  'users_clusters': users_clusters}
-    with open(DATA_FILE, 'wb') as text:
-        pickle.dump(saved_data, text)
+    save_data(all_pkgs, clusters, users_clusters, users_pkgs)
 
-    print "\nFinish, generated file: {}".format(DATA_FILE)
+    print "\nFinish, files saved on: {}".format(BASE_FOLDER)
 
 if __name__ == '__main__':
     main()
