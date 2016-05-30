@@ -41,7 +41,7 @@ def print_percentage(number, n_numbers, message='Percent', bar_length=40):
         print '\n'
 
 
-def get_users(all_pkgs, popcon_entries):
+def get_users_binary(all_pkgs, popcon_entries):
     rows = len(all_pkgs)
     cols = len(popcon_entries)
     users = [[0 for x in range(rows)] for y in range(cols)]
@@ -245,7 +245,7 @@ def main():
 
     print "Creating matrix of users"
     users_pkgs = popcon_entries
-    users_binary = get_users(all_pkgs, users_pkgs)
+    users_binary = get_users_binary(all_pkgs, users_pkgs)
 
     print "Filtering little used packages"
     users_pkgs = get_filtered_users_pkgs(all_pkgs, users_pkgs, users_binary)
