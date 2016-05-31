@@ -71,10 +71,9 @@ def get_filtered_users_pkgs(all_pkgs, users_pkgs, users_binary):
     number_of_users = len(users_binary)
 
     all_pkgs_rate = get_all_pkgs_rate(users_binary)
-    min_pkg_rate = number_of_users * PERCENT_USERS_FOR_RATE
 
     removed_pkgs = [pkg for index, pkg in enumerate(all_pkgs)
-                    if all_pkgs_rate[index] < min_pkg_rate]
+                    if all_pkgs_rate[index] < PERCENT_USERS_FOR_RATE]
 
     filtered_users_pkgs = []
     len_users_pkgs = len(users_pkgs)
