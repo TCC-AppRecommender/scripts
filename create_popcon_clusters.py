@@ -107,10 +107,15 @@ def read_popcon_file(file_path):
     with open(file_path, 'r') as text:
         lines = text.readlines()
         for line in lines[1:-1]:
-            pkg = line.split()[2]
+            splited_line = line.split()
+
+            if len(splited_line) < 3:
+                continue
+
+            pkg = splited_line[2]
 
             if (not re.match(r'^lib.*', pkg) and
-               not re.match(r'.*doc$', pkg) and '/' not in line.split()[2]):
+               not re.match(r'.*doc$', pkg) and '/' not in splited_line[2]):
                 popcon_entry.append(pkg)
 
     return sorted(popcon_entry)
