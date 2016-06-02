@@ -88,6 +88,22 @@ def get_popcon_submissions(all_pkgs, popcon_entries_path):
     return submissions
 
 
+def remove_unused_pkgs(all_pkgs, submissions):
+    cols = 1
+    rows = submissions.shape[0]
+    vector_ones = np.ones((rows, cols))
+
+    sum_cols = submissions.T.dot(vector_ones).T
+    indices = np.where(sum_cols == 0)[1].tolist()
+
+    all_pkgs = np.matrix(all_pkgs)
+    all_pkgs = np.delete(all_pkgs, indices, 1).tolist()[0]
+
+    submissions = np.delete(submissions, indices, 1)
+
+    return all_pkgs, submissions
+
+
 def get_all_pkgs_rate(users_binary):
     number_of_users = len(users_binary)
     matrix_pkgs = np.matrix(users_binary)
@@ -168,6 +184,8 @@ def main(random_state, n_clusters, popcon_entries_path):
     print "Loading popcon submissions"
     submissions = get_popcon_submissions(all_pkgs, popcon_entries_path)
 
+    print "Remove unused packages"
+    all_pkgs, submissions = remove_unused_pkgs(all_pkgs, submissions)
 
     print "Creating KMeans data"
     k_means = KMeans(n_clusters=n_clusters, random_state=random_state)
