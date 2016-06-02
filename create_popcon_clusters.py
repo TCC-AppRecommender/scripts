@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 
+import gc
 import os
-import pickle
 import re
-import shutil
 import sys
+import pickle
+import shutil
+import commands
 
 import numpy as np
 
@@ -15,10 +17,10 @@ BASE_FOLDER = 'popcon_clusters/'
 
 ALL_PKGS_FILE = BASE_FOLDER + 'all_pkgs.txt'
 CLUSTERS_FILE = BASE_FOLDER + 'clusters.txt'
-USERS_CLUSTERS_FILE = BASE_FOLDER + 'users_clusters.txt'
+SUBMISSIONS_CLUSTERS_FILE = BASE_FOLDER + 'submissions_clusters.txt'
 
-USERS_FOLDER = BASE_FOLDER + 'users/'
-USER_FILE = USERS_FOLDER + 'user_{}.txt'
+SUBMISSIONS_FOLDER = BASE_FOLDER + 'submissions/'
+SUBMISSION_FILE = SUBMISSIONS_FOLDER + 'submission_{}.txt'
 
 PERCENT_USERS_FOR_RATE = 0.05
 
@@ -33,7 +35,6 @@ def print_percentage(number, n_numbers, message='Percent', bar_length=40):
                                                         hashes + spaces,
                                                         number, n_numbers,
                                                         percent)
-
     sys.stdout.write(percent_message)
     sys.stdout.flush()
 
@@ -41,19 +42,46 @@ def print_percentage(number, n_numbers, message='Percent', bar_length=40):
         print '\n'
 
 
-def get_users_binary(all_pkgs, popcon_entries):
-    rows = len(all_pkgs)
-    cols = len(popcon_entries)
-    users = [[0 for x in range(rows)] for y in range(cols)]
+def get_all_pkgs():
+    pkgs = commands.getoutput('apt-cache pkgnames').splitlines()
+    pkgs = sorted(pkgs)
 
-    for pkg_index, pkg in enumerate(all_pkgs):
-        for entry_index, popcon_entry in enumerate(popcon_entries):
-            if pkg in popcon_entry:
-                users[entry_index][pkg_index] = 1
+    all_pkgs = [pkg for pkg in pkgs if not re.match(r'^lib.*', pkg) and
+               not re.match(r'.*doc$', pkg)]
 
-        print_percentage(pkg_index + 1, len(all_pkgs))
+    return all_pkgs
 
-    return users
+
+def get_popcon_submissions(all_pkgs, popcon_entries_path):
+    folders = os.listdir(popcon_entries_path)
+
+    submissions = []
+    n_submission = 0
+    len_all_pkgs = len(all_pkgs)
+
+    file_paths = commands.getoutput('find {}* -type f'.format(popcon_entries_path)).splitlines()
+    len_submissions = len(file_paths)
+
+    for file_path in file_paths:
+        submission = [0] * len_all_pkgs
+
+        with open(file_path, 'r') as text:
+            lines = text.readlines()
+            for line in lines[1:-1]:
+                try:
+                    pkg = line.split()[2]
+                    pkg_index = all_pkgs.index(pkg)
+                    submission[pkg_index] = 1
+                except KeyboardInterrupt:
+                    exit(1)
+                except:
+                    continue
+
+        n_submission += 1
+        submissions.append(submission)
+        print_percentage(n_submission, len_submissions)
+
+    return submissions
 
 
 def get_all_pkgs_rate(users_binary):
@@ -65,93 +93,6 @@ def get_all_pkgs_rate(users_binary):
     all_pkgs_rate = histogram / number_of_users
 
     return all_pkgs_rate.T.tolist()[0]
-
-
-def get_filtered_users_pkgs(all_pkgs, users_pkgs, users_binary):
-    number_of_users = len(users_binary)
-
-    all_pkgs_rate = get_all_pkgs_rate(users_binary)
-
-    removed_pkgs = [pkg for index, pkg in enumerate(all_pkgs)
-                    if all_pkgs_rate[index] < PERCENT_USERS_FOR_RATE]
-
-    filtered_users_pkgs = []
-    len_users_pkgs = len(users_pkgs)
-    for index, user_pkgs in enumerate(users_pkgs):
-        filtered_user_pkgs = [pkg for pkg in user_pkgs
-                              if pkg not in removed_pkgs]
-
-        filtered_users_pkgs.append(filtered_user_pkgs)
-        print_percentage(index + 1, len_users_pkgs)
-
-    return filtered_users_pkgs
-
-
-def get_all_pkgs(popcon_entries):
-    all_pkgs = set()
-
-    len_popcon_entries = len(popcon_entries)
-
-    for index, popcon_entry in enumerate(popcon_entries):
-        for pkg in popcon_entry:
-            all_pkgs.add(pkg)
-
-        print_percentage(index + 1, len_popcon_entries)
-
-    all_pkgs = list(sorted(all_pkgs))
-    return all_pkgs
-
-
-def read_popcon_file(file_path):
-    popcon_entry = []
-    with open(file_path, 'r') as text:
-        lines = text.readlines()
-        for line in lines[1:-1]:
-            splited_line = line.split()
-
-            if len(splited_line) < 3:
-                continue
-
-            pkg = splited_line[2]
-
-            if (not re.match(r'^lib.*', pkg) and
-               not re.match(r'.*doc$', pkg) and '/' not in splited_line[2]):
-                popcon_entry.append(pkg)
-
-    return sorted(popcon_entry)
-
-
-def get_popcon_files(popcon_entries_path):
-    folders = os.listdir(popcon_entries_path)
-
-    popcon_files = []
-    for folder in folders:
-        folder_path = os.path.join(popcon_entries_path, folder)
-        file_names = os.listdir(folder_path)
-
-        if type(file_names) is not list:
-            file_names = [file_names]
-
-        for file_name in file_names:
-            popcon_files.append(os.path.join(folder_path, file_name))
-
-    return popcon_files
-
-
-def get_popcon_entries(popcon_entries_path):
-    popcon_files = get_popcon_files(popcon_entries_path)
-
-    popcon_entries = []
-    len_popcon_files = len(popcon_files)
-    for index, popcon_file in enumerate(popcon_files):
-        popcon_entry = read_popcon_file(popcon_file)
-
-        if len(popcon_entry) > 0:
-            popcon_entries.append(popcon_entry)
-
-        print_percentage(index + 1, len_popcon_files)
-
-    return popcon_entries
 
 
 def save_all_pkgs(all_pkgs):
@@ -173,32 +114,34 @@ def save_clusters(clusters):
             print_percentage(index + 1, len_clusters)
 
 
-def save_users(users_pkgs):
-    len_users_pkgs = len(users_pkgs)
+def save_submissions(submissions, all_pkgs):
+    len_submissions = len(submissions)
 
-    for index, user_pkgs in enumerate(users_pkgs):
-        with open(USER_FILE.format(index), 'w') as text:
-            for pkg in user_pkgs:
-                text.write(pkg + '\n')
+    for submission_index, submission in enumerate(submissions):
+        with open(SUBMISSION_FILE.format(submission_index), 'w') as text:
+            for index, value in enumerate(submission):
+                if value == 1:
+                    pkg = all_pkgs[index]
+                    text.write(pkg + '\n')
 
-        print_percentage(index + 1, len_users_pkgs)
+        print_percentage(submission_index + 1, len_submissions)
 
 
-def save_users_clusters(users_clusters):
-    with open(USERS_CLUSTERS_FILE, 'w') as text:
-        len_users_clusters = len(users_clusters)
+def save_submissions_clusters(submissions_clusters):
+    with open(SUBMISSIONS_CLUSTERS_FILE, 'w') as text:
+        len_submissions_clusters = len(submissions_clusters)
 
-        for index, user_cluster in enumerate(users_clusters):
+        for index, user_cluster in enumerate(submissions_clusters):
             line = "{}: {}".format(index, user_cluster)
             text.write(line + '\n')
-            print_percentage(index + 1, len_users_clusters)
+            print_percentage(index + 1, len_submissions_clusters)
 
 
-def save_data(all_pkgs, clusters, users_clusters, users_pkgs):
+def save_data(all_pkgs, clusters, submissions_clusters, submissions):
     if os.path.exists(BASE_FOLDER):
         shutil.rmtree(BASE_FOLDER)
     os.makedirs(BASE_FOLDER)
-    os.makedirs(USERS_FOLDER)
+    os.makedirs(SUBMISSIONS_FOLDER)
 
     print "Saving all_pkgs.txt"
     save_all_pkgs(all_pkgs)
@@ -206,35 +149,29 @@ def save_data(all_pkgs, clusters, users_clusters, users_pkgs):
     print "Saving clusters.txt"
     save_clusters(clusters)
 
-    print "Saving users_clusters.txt"
-    save_users_clusters(users_clusters)
+    print "Saving submissions_clusters.txt"
+    save_submissions_clusters(submissions_clusters)
 
-    print "Saving users_pkgs.txt"
-    save_users(users_pkgs)
+    print "Saving submissions"
+    save_submissions(submissions, all_pkgs)
 
 
 def main(random_state, n_clusters, popcon_entries_path):
 
-    print "Loading popcon files:"
-    popcon_entries = get_popcon_entries(popcon_entries_path)
+    print "Getting all debian packages"
+    all_pkgs = get_all_pkgs()
 
-    print "Get all packages of popcon files:"
-    all_pkgs = get_all_pkgs(popcon_entries)
+    print "Loading popcon submissions"
+    submissions = get_popcon_submissions(all_pkgs, popcon_entries_path)
 
-    print "Creating matrix of users"
-    users_pkgs = popcon_entries
-    users_binary = get_users_binary(all_pkgs, users_pkgs)
-
-    print "Filtering little used packages"
-    users_pkgs = get_filtered_users_pkgs(all_pkgs, users_pkgs, users_binary)
 
     print "Creating KMeans data"
     k_means = KMeans(n_clusters=n_clusters, random_state=random_state)
-    k_means.fit(users_binary)
-    users_clusters = k_means.labels_.tolist()
+    k_means.fit(submissions)
+    submissions_clusters = k_means.labels_.tolist()
     clusters = k_means.cluster_centers_.tolist()
 
-    save_data(all_pkgs, clusters, users_clusters, users_pkgs)
+    save_data(all_pkgs, clusters, submissions_clusters, submissions)
 
     print "\nFinish, files saved on: {}".format(BASE_FOLDER)
 
