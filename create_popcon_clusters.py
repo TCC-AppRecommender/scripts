@@ -10,6 +10,7 @@ import shutil
 import commands
 
 import numpy as np
+from scipy.sparse import csr_matrix
 
 from sklearn.cluster import KMeans
 
@@ -56,16 +57,17 @@ def get_all_pkgs():
 def get_popcon_submissions(all_pkgs, popcon_entries_path):
     folders = os.listdir(popcon_entries_path)
 
-    submissions = []
-    n_submission = 0
-    len_all_pkgs = len(all_pkgs)
-
     file_paths = commands.getoutput('find {}* -type f'.format(popcon_entries_path)).splitlines()
+
+    len_all_pkgs = len(all_pkgs)
     len_submissions = len(file_paths)
 
-    for file_path in file_paths:
-        submission = [0] * len_all_pkgs
+    n_submission = 0
+    cols = len_all_pkgs
+    rows = len_submissions
+    submissions = csr_matrix((rows, cols), dtype=np.uint8).todense()
 
+    for file_path in file_paths:
         with open(file_path) as infile:
             m = mmap.mmap(infile.fileno(), 0, prot=mmap.ACCESS_READ)
             for line in iter(m.readline, ""):
@@ -73,16 +75,14 @@ def get_popcon_submissions(all_pkgs, popcon_entries_path):
                 try:
                     pkg = line.split()[2]
                     pkg_index = all_pkgs.index(pkg)
-                    submission[pkg_index] = 1
+                    submissions[n_submission, pkg_index] = 1
                 except KeyboardInterrupt:
                     exit(1)
                 except:
                     continue
             m.close()
 
-        gc.collect()
         n_submission += 1
-        submissions.append(submission)
         print_percentage(n_submission, len_submissions)
 
     return submissions
@@ -123,7 +123,7 @@ def save_submissions(submissions, all_pkgs):
 
     for submission_index, submission in enumerate(submissions):
         with open(SUBMISSION_FILE.format(submission_index), 'w') as text:
-            for index, value in enumerate(submission):
+            for index, value in enumerate(np.nditer(submission)):
                 if value == 1:
                     pkg = all_pkgs[index]
                     text.write(pkg + '\n')
