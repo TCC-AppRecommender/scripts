@@ -4,6 +4,7 @@ import gc
 import os
 import re
 import sys
+import mmap
 import pickle
 import shutil
 import commands
@@ -65,9 +66,10 @@ def get_popcon_submissions(all_pkgs, popcon_entries_path):
     for file_path in file_paths:
         submission = [0] * len_all_pkgs
 
-        with open(file_path, 'r') as text:
-            lines = text.readlines()
-            for line in lines[1:-1]:
+        with open(file_path) as infile:
+            m = mmap.mmap(infile.fileno(), 0, prot=mmap.ACCESS_READ)
+            for line in iter(m.readline, ""):
+                line = line.strip()
                 try:
                     pkg = line.split()[2]
                     pkg_index = all_pkgs.index(pkg)
@@ -76,7 +78,9 @@ def get_popcon_submissions(all_pkgs, popcon_entries_path):
                     exit(1)
                 except:
                     continue
+            m.close()
 
+        gc.collect()
         n_submission += 1
         submissions.append(submission)
         print_percentage(n_submission, len_submissions)
