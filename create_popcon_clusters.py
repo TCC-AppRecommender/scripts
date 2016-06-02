@@ -104,15 +104,22 @@ def remove_unused_pkgs(all_pkgs, submissions):
     return all_pkgs, submissions
 
 
-def get_all_pkgs_rate(users_binary):
-    number_of_users = len(users_binary)
-    matrix_pkgs = np.matrix(users_binary)
-    vector_ones = np.ones((len(users_binary), 1))
+def filter_little_used_packages(all_pkgs, submissions):
+    cols = 1
+    rows = submissions.shape[0]
+    vector_ones = np.ones((rows, cols))
 
-    histogram = matrix_pkgs.T.dot(vector_ones)
-    all_pkgs_rate = histogram / number_of_users
+    histogram = submissions.T.dot(vector_ones)
+    submissions_rate = histogram / rows
 
-    return all_pkgs_rate.T.tolist()[0]
+    indices = np.where(submissions_rate < PERCENT_USERS_FOR_RATE)[1].tolist()
+
+    all_pkgs = np.matrix(all_pkgs)
+    all_pkgs = np.delete(all_pkgs, indices, 1).tolist()[0]
+
+    submissions = np.delete(submissions, indices, 1)
+
+    return all_pkgs, submissions
 
 
 def save_all_pkgs(all_pkgs):
@@ -186,6 +193,9 @@ def main(random_state, n_clusters, popcon_entries_path):
 
     print "Remove unused packages"
     all_pkgs, submissions = remove_unused_pkgs(all_pkgs, submissions)
+
+    print "Filter little used packages"
+    all_pkgs, submissions = filter_little_used_packages(all_pkgs, submissions)
 
     print "Creating KMeans data"
     k_means = KMeans(n_clusters=n_clusters, random_state=random_state)
