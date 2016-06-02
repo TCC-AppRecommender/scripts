@@ -54,7 +54,8 @@ def get_all_pkgs():
     return all_pkgs
 
 
-def get_popcon_submissions(all_pkgs, popcon_entries_path):
+def get_popcon_submissions(popcon_entries_path):
+    all_pkgs = get_all_pkgs()
     folders = os.listdir(popcon_entries_path)
 
     file_paths = commands.getoutput('find {}* -type f'.format(popcon_entries_path)).splitlines()
@@ -85,7 +86,7 @@ def get_popcon_submissions(all_pkgs, popcon_entries_path):
         n_submission += 1
         print_percentage(n_submission, len_submissions)
 
-    return submissions
+    return all_pkgs, submissions
 
 
 def remove_unused_pkgs(all_pkgs, submissions):
@@ -185,11 +186,8 @@ def save_data(all_pkgs, clusters, submissions_clusters, submissions):
 
 def main(random_state, n_clusters, popcon_entries_path):
 
-    print "Getting all debian packages"
-    all_pkgs = get_all_pkgs()
-
     print "Loading popcon submissions"
-    submissions = get_popcon_submissions(all_pkgs, popcon_entries_path)
+    all_pkgs, submissions = get_popcon_submissions(popcon_entries_path)
 
     print "Remove unused packages"
     all_pkgs, submissions = remove_unused_pkgs(all_pkgs, submissions)
