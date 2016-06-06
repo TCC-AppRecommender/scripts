@@ -10,7 +10,7 @@ import shutil
 import commands
 
 import numpy as np
-from scipy.sparse import csr_matrix
+from scipy.sparse import lil_matrix
 
 from sklearn.cluster import KMeans
 
@@ -56,37 +56,33 @@ def get_all_pkgs():
 
 def get_popcon_submissions(popcon_entries_path):
     all_pkgs = get_all_pkgs()
+    all_pkgs_np = np.array(all_pkgs)
+
     folders = os.listdir(popcon_entries_path)
 
-    file_paths = commands.getoutput('find {}* -type f'.format(popcon_entries_path)).splitlines()
-
-    len_all_pkgs = len(all_pkgs)
-    len_submissions = len(file_paths)
+    command = 'find {}* -type f'.format(popcon_entries_path)
+    file_paths = commands.getoutput(command).splitlines()
 
     n_submission = 0
-    cols = len_all_pkgs
-    rows = len_submissions
-    submissions = csr_matrix((rows, cols), dtype=np.uint8).todense()
+    cols = len(all_pkgs)
+    rows = len(file_paths)
+    submissions = lil_matrix((rows, cols), dtype=np.uint8)
+    len_submissions = rows
 
+    match = re.compile(r'^\d+\s\d+\s([^\/\s]+)', re.MULTILINE)
     for file_path in file_paths:
-        with open(file_path) as infile:
-            m = mmap.mmap(infile.fileno(), 0, prot=mmap.ACCESS_READ)
-            for line in iter(m.readline, ""):
-                line = line.strip()
-                try:
-                    pkg = line.split()[2]
-                    pkg_index = all_pkgs.index(pkg)
-                    submissions[n_submission, pkg_index] = 1
-                except KeyboardInterrupt:
-                    exit(1)
-                except:
-                    continue
-            m.close()
+        ifile = open(file_path, 'r')
+        text = ifile.read()
+        ifile.close()
+
+        pkgs = match.findall(text)
+        indices = np.where(np.in1d(all_pkgs_np, pkgs))[0].tolist()
+        submissions[n_submission, indices] = 1
 
         n_submission += 1
         print_percentage(n_submission, len_submissions)
 
-    return all_pkgs, submissions
+    return all_pkgs, submissions.todense()
 
 
 def remove_unused_pkgs(all_pkgs, submissions):
