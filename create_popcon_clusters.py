@@ -65,6 +65,7 @@ def get_submissions(all_pkgs, submissions_paths, n_submission_index,
 
     match = re.compile(r'^\d+\s\d+\s([^\/\s]+)', re.MULTILINE)
     for file_path in submissions_paths:
+
         ifile = open(file_path, 'r')
         text = ifile.read()
         ifile.close()
@@ -96,7 +97,8 @@ def get_popcon_submissions(popcon_entries_path, n_processors):
     len_submissions = len(submissions_paths)
     block = len_submissions / n_processors
 
-    for index in range(n_processors):
+    for index in range(n_processors - 1):
+        index += 1
         begin = index*block
         end = (index+1)*block
         submissions_paths_block = submissions_paths[begin:end]
@@ -110,7 +112,12 @@ def get_popcon_submissions(popcon_entries_path, n_processors):
         out_queues.append(out_queue)
         process_submissions.append(process_submission)
 
-    submissions = []
+    out_queue = Queue()
+    submissions_paths_block = submissions_paths[:block]
+    get_submissions(all_pkgs, submissions_paths_block, 0,
+                    n_submission_paths, len_submissions, out_queue)
+
+    submissions = [out_queue.get()]
     for out_queue in out_queues:
         submission = out_queue.get()
         submissions.append(submission)
