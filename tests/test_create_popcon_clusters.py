@@ -46,7 +46,8 @@ class CreatePopconClustersTests(unittest.TestCase):
         for file_path in popcon_files_path:
             self.create_popcon_file(file_path, file_pkgs[file_path])
 
-        all_pkgs, submissions = cpc.get_popcon_submissions(popcon_entries_path)
+        all_pkgs, submissions = cpc.get_popcon_submissions(
+            popcon_entries_path, 2)
         all_pkgs, submissions = cpc.remove_unused_pkgs(all_pkgs, submissions)
         all_pkgs, submissions = cpc.filter_little_used_packages(all_pkgs,
                                                             submissions)

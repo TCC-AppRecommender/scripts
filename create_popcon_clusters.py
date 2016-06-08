@@ -10,8 +10,9 @@ import shutil
 import commands
 
 import numpy as np
-from scipy.sparse import lil_matrix
 
+from multiprocessing import Process, Queue, Manager
+from scipy.sparse import lil_matrix
 from sklearn.cluster import KMeans
 
 
@@ -25,7 +26,6 @@ SUBMISSIONS_FOLDER = BASE_FOLDER + 'submissions/'
 SUBMISSION_FILE = SUBMISSIONS_FOLDER + 'submission_{}.txt'
 
 PERCENT_USERS_FOR_RATE = 0.05
-
 
 def print_percentage(number, n_numbers, message='Percent', bar_length=40):
     percent = float(number) / float(n_numbers)
@@ -54,35 +54,73 @@ def get_all_pkgs():
     return all_pkgs
 
 
-def get_popcon_submissions(popcon_entries_path):
-    all_pkgs = get_all_pkgs()
+def get_submissions(all_pkgs, submissions_paths, n_submission_index,
+                    n_submission_paths, len_submissions, out_queue):
     all_pkgs_np = np.array(all_pkgs)
 
-    folders = os.listdir(popcon_entries_path)
-
-    command = 'find {}* -type f'.format(popcon_entries_path)
-    file_paths = commands.getoutput(command).splitlines()
-
-    n_submission = 0
     cols = len(all_pkgs)
-    rows = len(file_paths)
+    rows = len(submissions_paths)
     submissions = lil_matrix((rows, cols), dtype=np.uint8)
-    len_submissions = rows
+    n_file = 0
 
     match = re.compile(r'^\d+\s\d+\s([^\/\s]+)', re.MULTILINE)
-    for file_path in file_paths:
+    for file_path in submissions_paths:
         ifile = open(file_path, 'r')
         text = ifile.read()
         ifile.close()
 
         pkgs = match.findall(text)
-        indices = np.where(np.in1d(all_pkgs_np, pkgs))[0].tolist()
-        submissions[n_submission, indices] = 1
+        indices = np.where(np.in1d(all_pkgs_np, pkgs))
+        submissions[n_file, indices] = 1
 
-        n_submission += 1
-        print_percentage(n_submission, len_submissions)
+        n_file += 1
+        n_submission_paths.value += 1
 
-    return all_pkgs, submissions.todense()
+        print_percentage(n_submission_paths.value, len_submissions)
+
+    out_queue.put(submissions.todense())
+
+
+def get_popcon_submissions(popcon_entries_path, n_processors):
+    all_pkgs = get_all_pkgs()
+    folders = os.listdir(popcon_entries_path)
+
+    command = 'find {}* -type f'.format(popcon_entries_path)
+    submissions_paths = commands.getoutput(command).splitlines()
+
+    manager = Manager()
+    n_submission_paths = manager.Value('i', 0)
+
+    out_queues = []
+    process_submissions = []
+    len_submissions = len(submissions_paths)
+    block = len_submissions / n_processors
+
+    for index in range(n_processors):
+        begin = index*block
+        end = (index+1)*block
+        submissions_paths_block = submissions_paths[begin:end]
+
+        out_queue = Queue()
+        process_submission = Process(
+            target=get_submissions, args=(all_pkgs, submissions_paths_block,
+                                          index, n_submission_paths,
+                                          len_submissions, out_queue))
+        process_submission.start()
+        out_queues.append(out_queue)
+        process_submissions.append(process_submission)
+
+    submissions = []
+    for out_queue in out_queues:
+        submission = out_queue.get()
+        submissions.append(submission)
+
+    for process_submission in process_submissions:
+        process_submission.join()
+
+    submissions = np.vstack(submissions)
+
+    return all_pkgs, submissions
 
 
 def remove_unused_pkgs(all_pkgs, submissions):
@@ -180,10 +218,11 @@ def save_data(all_pkgs, clusters, submissions_clusters, submissions):
     save_submissions(submissions, all_pkgs)
 
 
-def main(random_state, n_clusters, popcon_entries_path):
+def main(random_state, n_clusters, n_processors, popcon_entries_path):
 
     print "Loading popcon submissions"
-    all_pkgs, submissions = get_popcon_submissions(popcon_entries_path)
+    all_pkgs, submissions = get_popcon_submissions(popcon_entries_path,
+                                                   n_processors)
 
     print "Remove unused packages"
     all_pkgs, submissions = remove_unused_pkgs(all_pkgs, submissions)
@@ -210,8 +249,9 @@ if __name__ == '__main__':
         print "  n_clusters   - Its the number of clusters are been used"
         exit(1)
 
-    n_clusters = int(sys.argv[2])
-    random_state = int(sys.argv[1])
-    popcon_entries_path = os.path.expanduser(sys.argv[3])
+    n_clusters = int(sys.argv[3])
+    random_state = int(sys.argv[2])
+    n_processors = int(sys.argv[4])
+    popcon_entries_path = os.path.expanduser(sys.argv[1])
 
-    main(random_state, n_clusters, popcon_entries_path)
+    main(random_state, n_clusters, n_processors, popcon_entries_path)
