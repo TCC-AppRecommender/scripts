@@ -54,7 +54,7 @@ class CreatePopconClustersTests(unittest.TestCase):
         shutil.rmtree(popcon_entries_path)
 
         self.assertEqual(assert_all_pkgs, all_pkgs)
-        self.assertEqual(assert_submissions.tolist(), submissions.tolist())
+        self.assertEqual(assert_submissions.tolist(), submissions.todense().tolist())
 
 
     # def test_get_all_pkgs_rate(self):

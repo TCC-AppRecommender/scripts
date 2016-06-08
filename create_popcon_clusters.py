@@ -10,9 +10,9 @@ import shutil
 import commands
 
 import numpy as np
+import scipy.sparse as sp
 
 from multiprocessing import Process, Queue, Manager
-from scipy.sparse import lil_matrix
 from sklearn.cluster import KMeans
 
 
@@ -60,7 +60,7 @@ def get_submissions(all_pkgs, submissions_paths, n_submission_index,
 
     cols = len(all_pkgs)
     rows = len(submissions_paths)
-    submissions = lil_matrix((rows, cols), dtype=np.uint8)
+    submissions = sp.lil_matrix((rows, cols), dtype=np.uint8)
     n_file = 0
 
     match = re.compile(r'^\d+\s\d+\s([^\/\s]+)', re.MULTILINE)
@@ -79,7 +79,7 @@ def get_submissions(all_pkgs, submissions_paths, n_submission_index,
 
         print_percentage(n_submission_paths.value, len_submissions)
 
-    out_queue.put(submissions.todense())
+    out_queue.put(submissions)
 
 
 def get_popcon_submissions(popcon_entries_path, n_processors):
@@ -101,7 +101,11 @@ def get_popcon_submissions(popcon_entries_path, n_processors):
         index += 1
         begin = index*block
         end = (index+1)*block
-        submissions_paths_block = submissions_paths[begin:end]
+
+        if index < n_processors - 1:
+            submissions_paths_block = submissions_paths[begin:end]
+        else:
+            submissions_paths_block = submissions_paths[begin:]
 
         out_queue = Queue()
         process_submission = Process(
@@ -125,7 +129,7 @@ def get_popcon_submissions(popcon_entries_path, n_processors):
     for process_submission in process_submissions:
         process_submission.join()
 
-    submissions = np.vstack(submissions)
+    submissions = sp.vstack(submissions, 'lil')
 
     return all_pkgs, submissions
 
@@ -137,11 +141,12 @@ def remove_unused_pkgs(all_pkgs, submissions):
 
     sum_cols = submissions.T.dot(vector_ones).T
     indices = np.where(sum_cols == 0)[1].tolist()
+    csr_indices = np.where(sum_cols != 0)[1].tolist()
 
     all_pkgs = np.matrix(all_pkgs)
     all_pkgs = np.delete(all_pkgs, indices, 1).tolist()[0]
 
-    submissions = np.delete(submissions, indices, 1)
+    submissions = sp.csr_matrix(submissions)[:,csr_indices]
 
     return all_pkgs, submissions
 
@@ -154,12 +159,13 @@ def filter_little_used_packages(all_pkgs, submissions):
     histogram = submissions.T.dot(vector_ones)
     submissions_rate = histogram / rows
 
-    indices = np.where(submissions_rate < PERCENT_USERS_FOR_RATE)[1].tolist()
+    indices = np.where(submissions_rate < PERCENT_USERS_FOR_RATE)[0].tolist()
+    csr_indices = np.where(submissions_rate >= PERCENT_USERS_FOR_RATE)[0].tolist()
 
     all_pkgs = np.matrix(all_pkgs)
     all_pkgs = np.delete(all_pkgs, indices, 1).tolist()[0]
 
-    submissions = np.delete(submissions, indices, 1)
+    submissions = submissions[:,csr_indices]
 
     return all_pkgs, submissions
 
@@ -184,11 +190,12 @@ def save_clusters(clusters):
 
 
 def save_submissions(submissions, all_pkgs):
-    len_submissions = len(submissions)
+    len_submissions = submissions.shape[0]
 
     for submission_index, submission in enumerate(submissions):
         with open(SUBMISSION_FILE.format(submission_index), 'w') as text:
-            for index, value in enumerate(np.nditer(submission)):
+            for index in submission.nonzero()[1].tolist():
+                value = submission[0, index]
                 if value == 1:
                     pkg = all_pkgs[index]
                     text.write(pkg + '\n')
