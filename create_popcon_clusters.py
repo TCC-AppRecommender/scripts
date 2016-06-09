@@ -65,7 +65,6 @@ def get_submissions(all_pkgs, submissions_paths, n_submission_index,
 
     match = re.compile(r'^\d+\s\d+\s([^\/\s]+)', re.MULTILINE)
     for file_path in submissions_paths:
-
         ifile = open(file_path, 'r')
         text = ifile.read()
         ifile.close()
@@ -76,6 +75,9 @@ def get_submissions(all_pkgs, submissions_paths, n_submission_index,
 
         n_file += 1
         n_submission_paths.value += 1
+
+        del ifile, text, pkgs, indices
+        gc.collect()
 
         print_percentage(n_submission_paths.value, len_submissions)
 
@@ -129,7 +131,7 @@ def get_popcon_submissions(popcon_entries_path, n_processors):
     for process_submission in process_submissions:
         process_submission.join()
 
-    submissions = sp.vstack(submissions, 'lil')
+    submissions = sp.vstack(submissions, 'csr')
 
     return all_pkgs, submissions
 
@@ -146,7 +148,7 @@ def remove_unused_pkgs(all_pkgs, submissions):
     all_pkgs = np.matrix(all_pkgs)
     all_pkgs = np.delete(all_pkgs, indices, 1).tolist()[0]
 
-    submissions = sp.csr_matrix(submissions)[:,csr_indices]
+    submissions = submissions[:,csr_indices]
 
     return all_pkgs, submissions
 
@@ -237,15 +239,19 @@ def main(random_state, n_clusters, n_processors, popcon_entries_path):
     print "Loading popcon submissions"
     all_pkgs, submissions = get_popcon_submissions(popcon_entries_path,
                                                    n_processors)
+    gc.collect()
 
     print "Remove unused packages"
     all_pkgs, submissions = remove_unused_pkgs(all_pkgs, submissions)
+    gc.collect()
 
     print "Filter little used packages"
     all_pkgs, submissions = filter_little_used_packages(all_pkgs, submissions)
+    gc.collect()
 
     print "Creating KMeans data"
-    k_means = KMeans(n_clusters=n_clusters, random_state=random_state)
+    k_means = KMeans(n_clusters=n_clusters, random_state=random_state,
+                     n_jobs=n_processors)
     k_means.fit(submissions)
     submissions_clusters = k_means.labels_.tolist()
     clusters = k_means.cluster_centers_.tolist()
@@ -255,12 +261,14 @@ def main(random_state, n_clusters, n_processors, popcon_entries_path):
     print "\nFinish, files saved on: {}".format(BASE_FOLDER)
 
 if __name__ == '__main__':
-    if len(sys.argv) < 4:
-        usage = "Usage: {} [random_state] [n_clusters] [popcon-entries_path]"
+    if len(sys.argv) < 5:
+        usage = "Usage: {} [random_state] [n_clusters] "\
+                "[popcon-entries_path] [n_processors]"
         print usage.format(sys.argv[0])
         print "\n[options]"
         print "  random_state - Its a number of random_state of KMeans"
         print "  n_clusters   - Its the number of clusters are been used"
+        print "  n_processors - Its the number of processors to be used"
         exit(1)
 
     n_clusters = int(sys.argv[3])
