@@ -77,7 +77,8 @@ def get_submissions(all_pkgs, submissions_paths, n_submission_index,
         n_submission_paths.value += 1
 
         del ifile, text, pkgs, indices
-        gc.collect()
+        if n_file % 1000 == 0:
+            gc.collect()
 
         print_percentage(n_submission_paths.value, len_submissions)
 
@@ -195,12 +196,12 @@ def save_submissions(submissions, all_pkgs):
     len_submissions = submissions.shape[0]
 
     for submission_index, submission in enumerate(submissions):
-        with open(SUBMISSION_FILE.format(submission_index), 'w') as text:
-            for index in submission.nonzero()[1].tolist():
-                value = submission[0, index]
-                if value == 1:
-                    pkg = all_pkgs[index]
-                    text.write(pkg + '\n')
+        pkgs = (all_pkgs[index] for index in submission.nonzero()[1].tolist()
+                if submission[0, index] == 1)
+        text = "\n".join(pkgs)
+
+        with open(SUBMISSION_FILE.format(submission_index), 'w') as infile:
+            infile.write(text)
 
         print_percentage(submission_index + 1, len_submissions)
 
