@@ -173,16 +173,21 @@ def filter_little_used_packages(all_pkgs, submissions):
     return all_pkgs, submissions
 
 
-def create_pkgs_clusters(all_pkgs, submissions, submissions_clusters):
-    pkgs_clusters = {pkg: defaultdict(int) for pkg in all_pkgs}
+def create_pkgs_clusters(all_pkgs, submissions, submissions_clusters,
+                         n_clusters):
+    rows = len(all_pkgs)
+    cols = n_clusters
+    pkgs_clusters = sp.lil_matrix((rows, cols), dtype=np.uint8)
+
+    all_pkgs_np = np.matrix(all_pkgs)
     len_submissions_clusters = len(submissions_clusters)
 
     for submission_index, cluster in enumerate(submissions_clusters):
         submission = submissions[submission_index]
+        indices = submission.nonzero()[1].tolist()
 
-        for index in submission.nonzero()[1].tolist():
-            if submission[0, index] == 1:
-                pkgs_clusters[all_pkgs[index]][cluster] += 1
+        increment = 1 + pkgs_clusters[indices, cluster].todense()
+        pkgs_clusters[indices, cluster] = increment
 
         print_percentage(submission_index + 1, len_submissions_clusters)
 
@@ -208,19 +213,16 @@ def save_clusters(clusters):
             print_percentage(index + 1, len_clusters)
 
 
-def save_pkgs_clusters(pkgs_clusters):
-    index = 0
+def save_pkgs_clusters(all_pkgs, pkgs_clusters):
     lines = []
-    len_pkgs_clusters = len(pkgs_clusters)
 
-    for pkg, clusters in pkgs_clusters.iteritems():
+    for index, pkg_cluster in enumerate(pkgs_clusters):
+        clusters = pkg_cluster.todense().tolist()[0]
         str_clusters = ";".join(("{}:{}".format(cluster, times)
-                                 for cluster, times in clusters.iteritems()))
-        line = "{}-{}".format(pkg, str_clusters)
+                                for cluster, times in enumerate(clusters)))
+        line = "{}-{}".format(all_pkgs[index], str_clusters)
         lines.append(line)
-
-        index += 1
-        print_percentage(index, len_pkgs_clusters)
+        print_percentage(index, pkgs_clusters.shape[0])
 
     with open(PKGS_CLUSTERS, 'w') as text:
         text.write("\n".join(lines))
@@ -238,10 +240,10 @@ def save_data(all_pkgs, clusters, pkgs_clusters):
     save_clusters(clusters)
 
     print "Saving pkgs_clusters.txt"
-    save_pkgs_clusters(pkgs_clusters)
+    save_pkgs_clusters(all_pkgs, pkgs_clusters)
 
 
-def generate_kmeans_data(n_clusters, random_state, n_processors):
+def generate_kmeans_data(n_clusters, random_state, n_processors, submissions):
     k_means = KMeans(n_clusters=n_clusters, random_state=random_state,
                      n_jobs=n_processors)
     k_means.fit(submissions)
@@ -267,13 +269,14 @@ def main(random_state, n_clusters, n_processors, popcon_entries_path):
     gc.collect()
 
     print "Creating KMeans data"
-    data = generate_kmeans_data(n_clusters, random_state, n_processors)
+    data = generate_kmeans_data(n_clusters, random_state, n_processors,
+                                submissions)
     clusters, submissions_clusters = data
     gc.collect()
 
     print "Creating packages clusters"
     pkgs_clusters = create_pkgs_clusters(all_pkgs, submissions,
-                                         submissions_clusters)
+                                         submissions_clusters, len(clusters))
     gc.collect()
 
     save_data(all_pkgs, clusters, pkgs_clusters)
