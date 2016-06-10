@@ -12,18 +12,18 @@ import commands
 import numpy as np
 import scipy.sparse as sp
 
+from collections import defaultdict
 from multiprocessing import Process, Queue, Manager
 from sklearn.cluster import KMeans
+
 
 
 BASE_FOLDER = 'popcon_clusters/'
 
 ALL_PKGS_FILE = BASE_FOLDER + 'all_pkgs.txt'
 CLUSTERS_FILE = BASE_FOLDER + 'clusters.txt'
+PKGS_CLUSTERS = BASE_FOLDER + 'pkgs_clusters.txt'
 SUBMISSIONS_CLUSTERS_FILE = BASE_FOLDER + 'submissions_clusters.txt'
-
-SUBMISSIONS_FOLDER = BASE_FOLDER + 'submissions/'
-SUBMISSION_FILE = SUBMISSIONS_FOLDER + 'submission_{}.txt'
 
 PERCENT_USERS_FOR_RATE = 0.05
 
@@ -77,7 +77,7 @@ def get_submissions(all_pkgs, submissions_paths, n_submission_index,
         n_submission_paths.value += 1
 
         del ifile, text, pkgs, indices
-        if n_file % 1000 == 0:
+        if n_submission_paths.value % 500 == 0:
             gc.collect()
 
         print_percentage(n_submission_paths.value, len_submissions)
@@ -173,6 +173,22 @@ def filter_little_used_packages(all_pkgs, submissions):
     return all_pkgs, submissions
 
 
+def create_pkgs_clusters(all_pkgs, submissions, submissions_clusters):
+    pkgs_clusters = {pkg: defaultdict(int) for pkg in all_pkgs}
+    len_submissions_clusters = len(submissions_clusters)
+
+    for submission_index, cluster in enumerate(submissions_clusters):
+        submission = submissions[submission_index]
+
+        for index in submission.nonzero()[1].tolist():
+            if submission[0, index] == 1:
+                pkgs_clusters[all_pkgs[index]][cluster] += 1
+
+        print_percentage(submission_index + 1, len_submissions_clusters)
+
+    return pkgs_clusters
+
+
 def save_all_pkgs(all_pkgs):
     with open(ALL_PKGS_FILE, 'w') as text:
         len_all_pkgs = len(all_pkgs)
@@ -192,35 +208,28 @@ def save_clusters(clusters):
             print_percentage(index + 1, len_clusters)
 
 
-def save_submissions(submissions, all_pkgs):
-    len_submissions = submissions.shape[0]
+def save_pkgs_clusters(pkgs_clusters):
+    index = 0
+    lines = []
+    len_pkgs_clusters = len(pkgs_clusters)
 
-    for submission_index, submission in enumerate(submissions):
-        pkgs = (all_pkgs[index] for index in submission.nonzero()[1].tolist()
-                if submission[0, index] == 1)
-        text = "\n".join(pkgs)
+    for pkg, clusters in pkgs_clusters.iteritems():
+        str_clusters = ";".join(("{}:{}".format(cluster, times)
+                                 for cluster, times in clusters.iteritems()))
+        line = "{}-{}".format(pkg, str_clusters)
+        lines.append(line)
 
-        with open(SUBMISSION_FILE.format(submission_index), 'w') as infile:
-            infile.write(text)
+        index += 1
+        print_percentage(index, len_pkgs_clusters)
 
-        print_percentage(submission_index + 1, len_submissions)
-
-
-def save_submissions_clusters(submissions_clusters):
-    with open(SUBMISSIONS_CLUSTERS_FILE, 'w') as text:
-        len_submissions_clusters = len(submissions_clusters)
-
-        for index, user_cluster in enumerate(submissions_clusters):
-            line = "{}: {}".format(index, user_cluster)
-            text.write(line + '\n')
-            print_percentage(index + 1, len_submissions_clusters)
+    with open(PKGS_CLUSTERS, 'w') as text:
+        text.write("\n".join(lines))
 
 
-def save_data(all_pkgs, clusters, submissions_clusters, submissions):
+def save_data(all_pkgs, clusters, pkgs_clusters):
     if os.path.exists(BASE_FOLDER):
         shutil.rmtree(BASE_FOLDER)
     os.makedirs(BASE_FOLDER)
-    os.makedirs(SUBMISSIONS_FOLDER)
 
     print "Saving all_pkgs.txt"
     save_all_pkgs(all_pkgs)
@@ -228,11 +237,18 @@ def save_data(all_pkgs, clusters, submissions_clusters, submissions):
     print "Saving clusters.txt"
     save_clusters(clusters)
 
-    print "Saving submissions_clusters.txt"
-    save_submissions_clusters(submissions_clusters)
+    print "Saving pkgs_clusters.txt"
+    save_pkgs_clusters(pkgs_clusters)
 
-    print "Saving submissions"
-    save_submissions(submissions, all_pkgs)
+
+def generate_kmeans_data(n_clusters, random_state, n_processors):
+    k_means = KMeans(n_clusters=n_clusters, random_state=random_state,
+                     n_jobs=n_processors)
+    k_means.fit(submissions)
+    submissions_clusters = k_means.labels_.tolist()
+    clusters = k_means.cluster_centers_.tolist()
+
+    return clusters, submissions_clusters
 
 
 def main(random_state, n_clusters, n_processors, popcon_entries_path):
@@ -251,13 +267,16 @@ def main(random_state, n_clusters, n_processors, popcon_entries_path):
     gc.collect()
 
     print "Creating KMeans data"
-    k_means = KMeans(n_clusters=n_clusters, random_state=random_state,
-                     n_jobs=n_processors)
-    k_means.fit(submissions)
-    submissions_clusters = k_means.labels_.tolist()
-    clusters = k_means.cluster_centers_.tolist()
+    data = generate_kmeans_data(n_clusters, random_state, n_processors)
+    clusters, submissions_clusters = data
+    gc.collect()
 
-    save_data(all_pkgs, clusters, submissions_clusters, submissions)
+    print "Creating packages clusters"
+    pkgs_clusters = create_pkgs_clusters(all_pkgs, submissions,
+                                         submissions_clusters)
+    gc.collect()
+
+    save_data(all_pkgs, clusters, pkgs_clusters)
 
     print "\nFinish, files saved on: {}".format(BASE_FOLDER)
 
