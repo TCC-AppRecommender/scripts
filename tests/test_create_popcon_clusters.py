@@ -36,7 +36,10 @@ class CreatePopconClustersTests(unittest.TestCase):
                      popcon_files_path[3]: ['git', 'ruby']}
 
         assert_all_pkgs = ['git', 'python', 'ruby', 'vagrant', 'vim']
-        assert_submissions = np.matrix("0 0 1 1 0; 1 0 0 0 1; 0 1 1 0 0; 1 0 1 0 0", dtype=np.uint8)
+        assert_submissions = np.matrix("0 0 1 1 0; 1 0 0 0 1; 0 1 1 0 0;"\
+                                       "1 0 1 0 0", dtype=np.uint8)
+        assert_pkgs_clusters = np.matrix("0 2 0; 0 0 1; 1 1 1; 1 0 0; 0 1 0",
+                                         dtype=np.uint8)
 
         if os.path.exists(popcon_entries_path):
             shutil.rmtree(popcon_entries_path)
@@ -51,10 +54,21 @@ class CreatePopconClustersTests(unittest.TestCase):
         all_pkgs, submissions = cpc.remove_unused_pkgs(all_pkgs, submissions)
         all_pkgs, submissions = cpc.filter_little_used_packages(all_pkgs,
                                                             submissions)
+
+        data = cpc.generate_kmeans_data(3, 170, 2, submissions)
+        clusters, submissions_clusters = data
+
+        pkgs_clusters = cpc.create_pkgs_clusters(all_pkgs, submissions,
+                                                 submissions_clusters,
+                                                 len(clusters))
+
         shutil.rmtree(popcon_entries_path)
 
         self.assertEqual(assert_all_pkgs, all_pkgs)
-        self.assertEqual(assert_submissions.tolist(), submissions.todense().tolist())
+        self.assertEqual(assert_submissions.tolist(),
+                         submissions.todense().tolist())
+        self.assertEqual(assert_pkgs_clusters.tolist(),
+                         pkgs_clusters.todense().tolist())
 
 
     # def test_get_all_pkgs_rate(self):
