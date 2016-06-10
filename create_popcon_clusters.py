@@ -194,23 +194,17 @@ def create_pkgs_clusters(all_pkgs, submissions, submissions_clusters,
     return pkgs_clusters
 
 
-def save_all_pkgs(all_pkgs):
-    with open(ALL_PKGS_FILE, 'w') as text:
-        len_all_pkgs = len(all_pkgs)
-
-        for index, pkg in enumerate(all_pkgs):
-            text.write(pkg + '\n')
-            print_percentage(index + 1, len_all_pkgs)
-
-
 def save_clusters(clusters):
-    with open(CLUSTERS_FILE, 'w') as text:
-        len_clusters = len(clusters)
+    lines = []
+    len_clusters = len(clusters)
 
-        for index, cluster in enumerate(clusters):
-            line = '; '.join([str(value) for value in cluster])
-            text.write(line + '\n')
-            print_percentage(index + 1, len_clusters)
+    for index, cluster in enumerate(clusters):
+        line = ';'.join([str(value) for value in cluster])
+        lines.append(line)
+        print_percentage(index + 1, len_clusters)
+
+    with open(CLUSTERS_FILE, 'w') as text:
+        text.write("\n".join(lines))
 
 
 def save_pkgs_clusters(all_pkgs, pkgs_clusters):
@@ -232,9 +226,6 @@ def save_data(all_pkgs, clusters, pkgs_clusters):
     if os.path.exists(BASE_FOLDER):
         shutil.rmtree(BASE_FOLDER)
     os.makedirs(BASE_FOLDER)
-
-    print "Saving all_pkgs.txt"
-    save_all_pkgs(all_pkgs)
 
     print "Saving clusters.txt"
     save_clusters(clusters)
