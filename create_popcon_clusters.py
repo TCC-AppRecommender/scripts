@@ -276,10 +276,12 @@ def main(random_state, n_clusters, n_processors, popcon_entries_path):
 
 if __name__ == '__main__':
     if len(sys.argv) < 5:
-        usage = "Usage: {} [random_state] [n_clusters] "\
-                "[popcon-entries_path] [n_processors]"
+        usage = "Usage: {} [popcon-entries_path] [random_state] "\
+                "[n_clusters] [n_processors]"
         print usage.format(sys.argv[0])
         print "\n[options]"
+        print "  popcon-entries_path - Its the path of folder with the"
+        print "                        popularity-contest submissions"
         print "  random_state - Its a number of random_state of KMeans"
         print "  n_clusters   - Its the number of clusters are been used"
         print "  n_processors - Its the number of processors to be used"

@@ -34,12 +34,23 @@ This script is used to separate the popularity-contest submissions in
 clusters, this clustarization its made by the packages in each submission.
 
 Usage:
-create\_popcon\_clusters.py [random\_state] [n_clusters] [popcon-entries\_path]
+create\_popcon\_clusters.py [popcon-entries\_path] [random\_state] [n\_clusters] [n\_processors]
 
 [options]
+  popcon-entries\_path - Its the path of folder with the popularity-contest
+                         submissions
   random\_state - Its a number of random\_state of KMeans
   n\_clusters   - Its the number of clusters are been used
 
+        usage = "Usage: {} [popcon-entries_path] [random_state] "\
+                "[n_clusters] [n_processors]"
+        print usage.format(sys.argv[0])
+        print "\n[options]"
+        print "  popcon-entries_path - Its the path of folder with the"
+        print "                        popularity-contest submissions"
+        print "  random_state - Its a number of random_state of KMeans"
+        print "  n_clusters   - Its the number of clusters are been used"
+        print "  n_processors - Its the number of processors to be used"
 
 send\_popcon\_entries.sh
 ------------------------
