@@ -3,6 +3,7 @@
 import commands
 import random
 import sys
+import re
 
 
 SUBMISSION_SIFIX = 'popcon'
@@ -63,11 +64,20 @@ def create_submission(pkgs, actual_time, submission_number, folder_path):
     save_submission(header_message, pkgs, pkgs_time, file_path)
 
 
-def get_pkgs():
-    lines = commands.getoutput('./popularity-contest').splitlines()
-    pkgs = {line.split()[-2]: line.split()[-1] for line in lines[1:-1]}
+def get_pkgs(popcon_submission_path):
+    match_pkg = re.compile(r'^\d+\s\d+\s([^\/\s]+)(?!.*<NOFILES>)', re.MULTILINE)
+    match_path = re.compile(r'^\d+\s\d+\s[^\/\s]+\s([^\s]+)', re.MULTILINE)
 
-    return pkgs
+    ifile = open(popcon_submission_path, 'r')
+    text = ifile.read()
+    ifile.close()
+
+    pkgs = match_pkg.findall(text)
+    paths = match_path.findall(text)
+
+    pkgs_path = {pkg: path for pkg, path in zip(pkgs, paths)}
+
+    return pkgs_path
 
 
 def filter_pkgs(pkgs):
@@ -81,9 +91,9 @@ def filter_pkgs(pkgs):
     return filtered_pkgs
 
 
-def run(number_of_submissions, folder_path):
+def run(popcon_submission_path, number_of_submissions, folder_path):
     actual_time = random.randint(100000000, 1000000000)
-    pkgs = get_pkgs()
+    pkgs = get_pkgs(popcon_submission_path)
 
     for submission_number in range(1, number_of_submissions + 1):
         filtered_pkgs = filter_pkgs(pkgs)
@@ -92,15 +102,17 @@ def run(number_of_submissions, folder_path):
 
 
 def usage():
-    usage_message = "USAGE: {} [number_of_submissions] [folder_to_save]"
+    usage_message = "USAGE: {} [popcon_submission_path] " \
+                    "[number_of_submissions] [folder_to_save]"
     print usage_message.format(sys.argv[0])
 
 
 if __name__ == '__main__':
     try:
-        folder_path = sys.argv[2]
-        number_of_submissions = int(sys.argv[1])
-        run(number_of_submissions, folder_path)
+        folder_path = sys.argv[3]
+        popcon_submission_path = sys.argv[1]
+        number_of_submissions = int(sys.argv[2])
+        run(popcon_submission_path, number_of_submissions, folder_path)
     except:
         usage()
         sys.exit()
