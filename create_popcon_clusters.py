@@ -63,7 +63,8 @@ def get_submissions(all_pkgs, submissions_paths, n_submission_index,
     submissions = sp.lil_matrix((rows, cols), dtype=np.uint8)
     n_file = 0
 
-    match = re.compile(r'^\d+\s\d+\s([^\/\s]+)', re.MULTILINE)
+    match = re.compile(r'^\d+\s\d+\s([^\/\s]+)(?!.*<NOFILES>)', re.MULTILINE)
+
     for file_path in submissions_paths:
         ifile = open(file_path, 'r')
         text = ifile.read()
