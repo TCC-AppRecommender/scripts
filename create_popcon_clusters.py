@@ -4,18 +4,14 @@ import gc
 import os
 import re
 import sys
-import mmap
-import pickle
 import shutil
 import commands
 
 import numpy as np
 import scipy.sparse as sp
 
-from collections import defaultdict
 from multiprocessing import Process, Queue, Manager
 from sklearn.cluster import KMeans
-
 
 
 BASE_FOLDER = 'popcon_clusters/'
