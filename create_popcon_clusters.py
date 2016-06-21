@@ -67,7 +67,7 @@ def get_submissions(all_pkgs, submissions_paths, n_submission_index,
         ifile.close()
 
         pkgs = match.findall(text)
-        indices = np.where(np.in1d(all_pkgs_np, pkgs))
+        indices = np.where(np.in1d(all_pkgs_np, pkgs))[0]
         submissions[n_file, indices] = 1
 
         n_file += 1
@@ -272,21 +272,26 @@ def main(random_state, n_clusters, n_processors, popcon_entries_path):
     print "\nFinish, files saved on: {}".format(BASE_FOLDER)
 
 if __name__ == '__main__':
-    if len(sys.argv) < 5:
+    if len(sys.argv) < 2:
         usage = "Usage: {} [popcon-entries_path] [random_state] "\
                 "[n_clusters] [n_processors]"
         print usage.format(sys.argv[0])
         print "\n[options]"
-        print "  popcon-entries_path - Its the path of folder with the"
-        print "                        popularity-contest submissions"
-        print "  random_state - Its a number of random_state of KMeans"
-        print "  n_clusters   - Its the number of clusters are been used"
-        print "  n_processors - Its the number of processors to be used"
+        print "  popcon-entries_path     - Its the path of folder with the"
+        print "                            popularity-contest submissions"
+        print "  random_state (optional) - Its a number of random_state of KMeans"
+        print "  n_clusters   (optional) - Its the number of clusters are been used"
+        print "  n_processors (optional) - Its the number of processors to be used"
         exit(1)
 
-    n_clusters = int(sys.argv[3])
-    random_state = int(sys.argv[2])
-    n_processors = int(sys.argv[4])
+    len_argv = len(sys.argv)
+    n_clusters = int(sys.argv[3]) if 3 < len_argv else 20
+    random_state = int(sys.argv[2]) if 2 < len_argv else 170
+    n_processors = int(sys.argv[4]) if 4 < len_argv else 1
     popcon_entries_path = os.path.expanduser(sys.argv[1])
+
+    if not os.path.exists(popcon_entries_path):
+        print "Folder not exists: {}".format(popcon_entries_path)
+        exit(1)
 
     main(random_state, n_clusters, n_processors, popcon_entries_path)

@@ -10,15 +10,15 @@ Script usage
 create_popcon_clusters.py [popcon-entries_path] [random_state] [n_clusters] [n_processors]
 
 [options]
-  popcon-entries_path - Its the path of folder with the popularity-contest
-                         submissions
-  random_state        - Its a number of random_state of KMeans
-  n_clusters          - Its the number of clusters are been used
-  n_processors        - Its the number of processors to be used
+  popcon-entries_path     - Its the path of folder with the popularity-contest
+                            submissions
+  random_state (optional) - Its a number of random_state of KMeans
+  n_clusters   (optional) - Its the number of clusters are been used
+  n_processors (optional) - Its the number of processors to be used
 
  example to run:
 
-   $ ./create_popcon_clusters.py ./popcon-entries 170 200 4
+   $ ./create_popcon_clusters.py ./popcon-entries
 
 
 Creating clusters document
