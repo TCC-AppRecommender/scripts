@@ -38,7 +38,7 @@ class CreatePopconClustersTests(unittest.TestCase):
         assert_all_pkgs = ['git', 'python', 'ruby', 'vagrant', 'vim']
         assert_submissions = np.matrix("0 0 1 1 0; 1 0 0 0 1; 0 1 1 0 0;"\
                                        "1 0 1 0 0", dtype=np.uint8)
-        assert_pkgs_clusters = np.matrix("0 2 0; 0 0 1; 1 1 1; 1 0 0; 0 1 0",
+        assert_pkgs_clusters = np.matrix("1 0 1; 0 1 0; 2 1 0; 1 0 0; 0 0 1",
                                          dtype=np.uint8)
 
         if os.path.exists(popcon_entries_path):

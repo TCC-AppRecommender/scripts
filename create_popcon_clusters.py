@@ -11,7 +11,7 @@ import numpy as np
 import scipy.sparse as sp
 
 from multiprocessing import Process, Queue, Manager
-from sklearn.cluster import KMeans
+from sklearn.cluster import MiniBatchKMeans
 
 
 BASE_FOLDER = 'popcon_clusters/'
@@ -62,9 +62,7 @@ def get_submissions(all_pkgs, submissions_paths, n_submission_index,
     match = re.compile(r'^\d+\s\d+\s([^\/\s]+)(?!.*<NOFILES>)', re.MULTILINE)
 
     for file_path in submissions_paths:
-        ifile = open(file_path, 'r')
-        text = ifile.read()
-        ifile.close()
+        text = commands.getoutput('cat {}'.format(file_path))
 
         pkgs = match.findall(text)
         indices = np.where(np.in1d(all_pkgs_np, pkgs))[0]
@@ -73,7 +71,7 @@ def get_submissions(all_pkgs, submissions_paths, n_submission_index,
         n_file += 1
         n_submission_paths.value += 1
 
-        del ifile, text, pkgs, indices
+        del text, pkgs, indices
         if n_submission_paths.value % 500 == 0:
             gc.collect()
 
@@ -232,8 +230,8 @@ def save_data(all_pkgs, clusters, pkgs_clusters):
 
 
 def generate_kmeans_data(n_clusters, random_state, n_processors, submissions):
-    k_means = KMeans(n_clusters=n_clusters, random_state=random_state,
-                     n_jobs=n_processors)
+    k_means = MiniBatchKMeans(n_clusters=n_clusters, init='k-means++',
+                              random_state=random_state, batch_size=1000)
     k_means.fit(submissions)
     submissions_clusters = k_means.labels_.tolist()
     clusters = k_means.cluster_centers_.tolist()
