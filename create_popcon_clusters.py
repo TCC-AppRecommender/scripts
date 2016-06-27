@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import gc
 import os
 import re
 import sys
@@ -70,10 +69,6 @@ def get_submissions(all_pkgs, submissions_paths, n_submission_index,
 
         n_file += 1
         n_submission_paths.value += 1
-
-        del text, pkgs, indices
-        if n_submission_paths.value % 500 == 0:
-            gc.collect()
 
         print_percentage(n_submission_paths.value, len_submissions)
 
@@ -208,7 +203,8 @@ def save_pkgs_clusters(all_pkgs, pkgs_clusters):
     for index, pkg_cluster in enumerate(pkgs_clusters):
         clusters = pkg_cluster.todense().tolist()[0]
         str_clusters = ";".join(("{}:{}".format(cluster, times)
-                                for cluster, times in enumerate(clusters)))
+                                for cluster, times in enumerate(clusters)
+                                if times > 0))
         line = "{}-{}".format(all_pkgs[index], str_clusters)
         lines.append(line)
         print_percentage(index, pkgs_clusters.shape[0])
@@ -244,26 +240,21 @@ def main(random_state, n_clusters, n_processors, popcon_entries_path):
     print "Loading popcon submissions"
     all_pkgs, submissions = get_popcon_submissions(popcon_entries_path,
                                                    n_processors)
-    gc.collect()
 
     print "Remove unused packages"
     all_pkgs, submissions = remove_unused_pkgs(all_pkgs, submissions)
-    gc.collect()
 
     print "Filter little used packages"
     all_pkgs, submissions = filter_little_used_packages(all_pkgs, submissions)
-    gc.collect()
 
     print "Creating KMeans data"
     data = generate_kmeans_data(n_clusters, random_state, n_processors,
                                 submissions)
     clusters, submissions_clusters = data
-    gc.collect()
 
     print "Creating packages clusters"
     pkgs_clusters = create_pkgs_clusters(all_pkgs, submissions,
                                          submissions_clusters, len(clusters))
-    gc.collect()
 
     save_data(all_pkgs, clusters, pkgs_clusters)
 
@@ -277,9 +268,12 @@ if __name__ == '__main__':
         print "\n[options]"
         print "  popcon-entries_path     - Its the path of folder with the"
         print "                            popularity-contest submissions"
-        print "  random_state (optional) - Its a number of random_state of KMeans"
-        print "  n_clusters   (optional) - Its the number of clusters are been used"
-        print "  n_processors (optional) - Its the number of processors to be used"
+        print "  random_state (optional) - Its a number of random_state of " \
+              "KMeans"
+        print "  n_clusters   (optional) - Its the number of clusters are " \
+              "been used"
+        print "  n_processors (optional) - Its the number of processors " \
+              "to be used"
         exit(1)
 
     len_argv = len(sys.argv)
