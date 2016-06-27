@@ -4,7 +4,6 @@ import argparse
 import commands
 import os
 import re
-import shutil
 import sys
 
 import numpy as np
@@ -18,6 +17,7 @@ CLUSTERS_FILE = 'clusters.txt'
 PKGS_CLUSTERS = 'pkgs_clusters.txt'
 
 PERCENT_USERS_FOR_RATE = 0.05
+
 
 def print_percentage(number, n_numbers, message='Percent', bar_length=40):
     percent = float(number) / float(n_numbers)
@@ -41,7 +41,7 @@ def get_all_pkgs():
     pkgs = sorted(pkgs)
 
     all_pkgs = [pkg for pkg in pkgs if not re.match(r'^lib.*', pkg) and
-               not re.match(r'.*doc$', pkg)]
+                not re.match(r'.*doc$', pkg)]
 
     return all_pkgs
 
@@ -74,7 +74,6 @@ def get_submissions(all_pkgs, submissions_paths, n_submission_index,
 
 def get_popcon_submissions(popcon_entries_path, n_processors):
     all_pkgs = get_all_pkgs()
-    folders = os.listdir(popcon_entries_path)
 
     command = 'find {}* -type f'.format(popcon_entries_path)
     submissions_paths = commands.getoutput(command).splitlines()
@@ -89,8 +88,8 @@ def get_popcon_submissions(popcon_entries_path, n_processors):
 
     for index in range(n_processors - 1):
         index += 1
-        begin = index*block
-        end = (index+1)*block
+        begin = index * block
+        end = (index + 1) * block
 
         if index < n_processors - 1:
             submissions_paths_block = submissions_paths[begin:end]
@@ -136,7 +135,7 @@ def remove_unused_pkgs(all_pkgs, submissions):
     all_pkgs = np.matrix(all_pkgs)
     all_pkgs = np.delete(all_pkgs, indices, 1).tolist()[0]
 
-    submissions = submissions[:,csr_indices]
+    submissions = submissions[:, csr_indices]
 
     return all_pkgs, submissions
 
@@ -150,12 +149,13 @@ def filter_little_used_packages(all_pkgs, submissions):
     submissions_rate = histogram / rows
 
     indices = np.where(submissions_rate < PERCENT_USERS_FOR_RATE)[0].tolist()
-    csr_indices = np.where(submissions_rate >= PERCENT_USERS_FOR_RATE)[0].tolist()
+    csr_indices = np.where(submissions_rate >= PERCENT_USERS_FOR_RATE)[0]
+    csr_indices = csr_indices.tolist()
 
     all_pkgs = np.matrix(all_pkgs)
     all_pkgs = np.delete(all_pkgs, indices, 1).tolist()[0]
 
-    submissions = submissions[:,csr_indices]
+    submissions = submissions[:, csr_indices]
 
     return all_pkgs, submissions
 
@@ -166,7 +166,6 @@ def create_pkgs_clusters(all_pkgs, submissions, submissions_clusters,
     cols = n_clusters
     pkgs_clusters = sp.lil_matrix((rows, cols), dtype=np.uint8)
 
-    all_pkgs_np = np.matrix(all_pkgs)
     len_submissions_clusters = len(submissions_clusters)
 
     for submission_index, cluster in enumerate(submissions_clusters):
@@ -269,7 +268,7 @@ def get_expand_folder_path(folder_path):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('popcon_entries_path', type=str,
-                        help='path of folder with the popularity-contest ' \
+                        help='path of folder with the popularity-contest '
                              'submissions')
     parser.add_argument('-o', '--output', type=str, metavar='',
                         default='.', help='path of folder to output data')
