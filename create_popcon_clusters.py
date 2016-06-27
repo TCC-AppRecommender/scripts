@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
+import argparse
+import commands
 import os
 import re
-import sys
 import shutil
-import commands
+import sys
 
 import numpy as np
 import scipy.sparse as sp
@@ -13,12 +14,8 @@ from multiprocessing import Process, Queue, Manager
 from sklearn.cluster import MiniBatchKMeans
 
 
-BASE_FOLDER = 'popcon_clusters/'
-
-ALL_PKGS_FILE = BASE_FOLDER + 'all_pkgs.txt'
-CLUSTERS_FILE = BASE_FOLDER + 'clusters.txt'
-PKGS_CLUSTERS = BASE_FOLDER + 'pkgs_clusters.txt'
-SUBMISSIONS_CLUSTERS_FILE = BASE_FOLDER + 'submissions_clusters.txt'
+CLUSTERS_FILE = 'clusters.txt'
+PKGS_CLUSTERS = 'pkgs_clusters.txt'
 
 PERCENT_USERS_FOR_RATE = 0.05
 
@@ -184,7 +181,7 @@ def create_pkgs_clusters(all_pkgs, submissions, submissions_clusters,
     return pkgs_clusters
 
 
-def save_clusters(clusters):
+def save_clusters(clusters, output_folder):
     lines = []
     len_clusters = len(clusters)
 
@@ -193,11 +190,11 @@ def save_clusters(clusters):
         lines.append(line)
         print_percentage(index + 1, len_clusters)
 
-    with open(CLUSTERS_FILE, 'w') as text:
+    with open(output_folder + CLUSTERS_FILE, 'w') as text:
         text.write("\n".join(lines))
 
 
-def save_pkgs_clusters(all_pkgs, pkgs_clusters):
+def save_pkgs_clusters(all_pkgs, pkgs_clusters, output_folder):
     lines = []
 
     for index, pkg_cluster in enumerate(pkgs_clusters):
@@ -209,20 +206,19 @@ def save_pkgs_clusters(all_pkgs, pkgs_clusters):
         lines.append(line)
         print_percentage(index, pkgs_clusters.shape[0])
 
-    with open(PKGS_CLUSTERS, 'w') as text:
+    with open(output_folder + PKGS_CLUSTERS, 'w') as text:
         text.write("\n".join(lines))
 
 
-def save_data(all_pkgs, clusters, pkgs_clusters):
-    if os.path.exists(BASE_FOLDER):
-        shutil.rmtree(BASE_FOLDER)
-    os.makedirs(BASE_FOLDER)
+def save_data(all_pkgs, clusters, pkgs_clusters, output_folder):
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
 
     print "Saving clusters.txt"
-    save_clusters(clusters)
+    save_clusters(clusters, output_folder)
 
     print "Saving pkgs_clusters.txt"
-    save_pkgs_clusters(all_pkgs, pkgs_clusters)
+    save_pkgs_clusters(all_pkgs, pkgs_clusters, output_folder)
 
 
 def generate_kmeans_data(n_clusters, random_state, n_processors, submissions):
@@ -235,7 +231,8 @@ def generate_kmeans_data(n_clusters, random_state, n_processors, submissions):
     return clusters, submissions_clusters
 
 
-def main(random_state, n_clusters, n_processors, popcon_entries_path):
+def main(random_state, n_clusters, n_processors, popcon_entries_path,
+         output_folder):
 
     print "Loading popcon submissions"
     all_pkgs, submissions = get_popcon_submissions(popcon_entries_path,
@@ -256,34 +253,45 @@ def main(random_state, n_clusters, n_processors, popcon_entries_path):
     pkgs_clusters = create_pkgs_clusters(all_pkgs, submissions,
                                          submissions_clusters, len(clusters))
 
-    save_data(all_pkgs, clusters, pkgs_clusters)
+    save_data(all_pkgs, clusters, pkgs_clusters, output_folder)
 
-    print "\nFinish, files saved on: {}".format(BASE_FOLDER)
+    print "\nFinish, files saved on: {}".format(output_folder)
+
+
+def get_expand_folder_path(folder_path):
+    expand_folder_path = os.path.expanduser(folder_path)
+    if expand_folder_path[-1] != '/':
+        expand_folder_path += '/'
+
+    return expand_folder_path
+
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('popcon_entries_path', type=str,
+                        help='path of folder with the popularity-contest ' \
+                             'submissions')
+    parser.add_argument('-o', '--output', type=str, metavar='',
+                        default='.', help='path of folder to output data')
+    parser.add_argument('-c', '--n_clusters', type=int, metavar='',
+                        default=200, help='Number of clusters are been used')
+    parser.add_argument('-p', '--n_processors', type=int, metavar='',
+                        default=1, help='Number of processors to be used')
+    parser.add_argument('-r', '--random_state', type=int, metavar='',
+                        default=170, help='Number of processors to be used')
+
     if len(sys.argv) < 2:
-        usage = "Usage: {} [popcon-entries_path] [random_state] "\
-                "[n_clusters] [n_processors]"
-        print usage.format(sys.argv[0])
-        print "\n[options]"
-        print "  popcon-entries_path     - Its the path of folder with the"
-        print "                            popularity-contest submissions"
-        print "  random_state (optional) - Its a number of random_state of " \
-              "KMeans"
-        print "  n_clusters   (optional) - Its the number of clusters are " \
-              "been used"
-        print "  n_processors (optional) - Its the number of processors " \
-              "to be used"
+        parser.print_help()
+        sys.exit(1)
+
+    args = parser.parse_args()
+
+    args.output = get_expand_folder_path(args.output)
+    args.popcon_entries_path = get_expand_folder_path(args.popcon_entries_path)
+
+    if not os.path.exists(args.popcon_entries_path):
+        print "Folder not exists: {}".format(args.popcon_entries_path)
         exit(1)
 
-    len_argv = len(sys.argv)
-    n_clusters = int(sys.argv[3]) if 3 < len_argv else 20
-    random_state = int(sys.argv[2]) if 2 < len_argv else 170
-    n_processors = int(sys.argv[4]) if 4 < len_argv else 1
-    popcon_entries_path = os.path.expanduser(sys.argv[1])
-
-    if not os.path.exists(popcon_entries_path):
-        print "Folder not exists: {}".format(popcon_entries_path)
-        exit(1)
-
-    main(random_state, n_clusters, n_processors, popcon_entries_path)
+    main(args.random_state, args.n_clusters, args.n_processors,
+         args.popcon_entries_path, args.output)
