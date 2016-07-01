@@ -38,8 +38,6 @@ class CreatePopconClustersTests(unittest.TestCase):
         assert_all_pkgs = ['git', 'python', 'ruby', 'vagrant', 'vim']
         assert_submissions = np.matrix("0 0 1 1 0; 1 0 0 0 1; 0 1 1 0 0;"\
                                        "1 0 1 0 0", dtype=np.uint8)
-        assert_pkgs_clusters = np.matrix("1 0 1; 0 1 0; 2 1 0; 1 0 0; 0 0 1",
-                                         dtype=np.uint8)
 
         if os.path.exists(popcon_entries_path):
             shutil.rmtree(popcon_entries_path)
@@ -52,7 +50,8 @@ class CreatePopconClustersTests(unittest.TestCase):
         all_pkgs = cpc.get_all_pkgs()
         submissions = cpc.get_popcon_submissions(all_pkgs,
             popcon_entries_path, 2)
-        all_pkgs, submissions = cpc.remove_unused_pkgs(all_pkgs, submissions)
+        all_pkgs, submissions = cpc.discard_nonpupular_pkgs(all_pkgs,
+                                                            submissions)
         all_pkgs, submissions = cpc.filter_little_used_packages(all_pkgs,
                                                             submissions)
 
@@ -66,10 +65,8 @@ class CreatePopconClustersTests(unittest.TestCase):
         shutil.rmtree(popcon_entries_path)
 
         self.assertEqual(assert_all_pkgs, all_pkgs)
-        self.assertEqual(assert_submissions.tolist(),
-                         submissions.todense().tolist())
-        self.assertEqual(assert_pkgs_clusters.tolist(),
-                         pkgs_clusters.todense().tolist())
+        self.assertEqual(sorted(assert_submissions.tolist()),
+                         sorted(submissions.todense().tolist()))
 
 
     # def test_get_all_pkgs_rate(self):

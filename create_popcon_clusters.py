@@ -2,10 +2,11 @@
 
 import argparse
 import commands
+import gzip
 import os
+import random
 import re
 import sys
-import gzip
 
 import numpy as np
 import scipy.sparse as sp
@@ -89,6 +90,7 @@ def get_submissions(all_pkgs, submissions_paths, n_submission_index,
 def get_popcon_submissions(all_pkgs, popcon_entries_path, n_processors):
     command = 'find {}* -type f'.format(popcon_entries_path)
     submissions_paths = commands.getoutput(command).splitlines()
+    random.shuffle(submissions_paths)
 
     manager = Manager()
     n_submission_paths = manager.Value('i', 0)
@@ -135,7 +137,7 @@ def get_popcon_submissions(all_pkgs, popcon_entries_path, n_processors):
     return submissions
 
 
-def remove_unused_pkgs(all_pkgs, submissions):
+def discard_nonpupular_pkgs(all_pkgs, submissions):
     cols = 1
     rows = submissions.shape[0]
     vector_ones = np.ones((rows, cols))
@@ -252,8 +254,8 @@ def main(random_state, n_clusters, n_processors, popcon_entries_path,
     submissions = get_popcon_submissions(all_pkgs, popcon_entries_path,
                                          n_processors)
 
-    print "Remove unused packages"
-    all_pkgs, submissions = remove_unused_pkgs(all_pkgs, submissions)
+    print "Discarding non packages"
+    all_pkgs, submissions = discard_nonpupular_pkgs(all_pkgs, submissions)
 
     print "Filter little used packages"
     all_pkgs, submissions = filter_little_used_packages(all_pkgs, submissions)
