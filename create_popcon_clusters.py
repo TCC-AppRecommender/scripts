@@ -5,6 +5,7 @@ import commands
 import os
 import re
 import sys
+import gzip
 
 import numpy as np
 import scipy.sparse as sp
@@ -15,6 +16,8 @@ from sklearn.cluster import MiniBatchKMeans
 
 CLUSTERS_FILE = 'clusters.txt'
 PKGS_CLUSTERS = 'pkgs_clusters.txt'
+
+MIRROR_BASE = "/srv/chroot/unstable-amd64.tar.gz"
 
 PERCENT_USERS_FOR_RATE = 0.05
 
@@ -36,8 +39,19 @@ def print_percentage(number, n_numbers, message='Percent', bar_length=40):
         print '\n'
 
 
+def read_all_pkgs(filename):
+    match = re.compile(r'^Package:\s(.+)', re.MULTILINE)
+
+    infile = gzip.open(filename, 'r')
+    text = infile.read()
+    pkgs = list(set(match.findall(text)))
+    infile.close()
+
+    return pkgs
+
+
 def get_all_pkgs():
-    pkgs = commands.getoutput('apt-cache pkgnames').splitlines()
+    pkgs = read_all_pkgs(MIRROR_BASE)
     pkgs = sorted(pkgs)
 
     all_pkgs = [pkg for pkg in pkgs if not re.match(r'^lib.*', pkg) and
@@ -72,9 +86,7 @@ def get_submissions(all_pkgs, submissions_paths, n_submission_index,
     out_queue.put(submissions)
 
 
-def get_popcon_submissions(popcon_entries_path, n_processors):
-    all_pkgs = get_all_pkgs()
-
+def get_popcon_submissions(all_pkgs, popcon_entries_path, n_processors):
     command = 'find {}* -type f'.format(popcon_entries_path)
     submissions_paths = commands.getoutput(command).splitlines()
 
@@ -120,7 +132,7 @@ def get_popcon_submissions(popcon_entries_path, n_processors):
 
     submissions = sp.vstack(submissions, 'csr')
 
-    return all_pkgs, submissions
+    return submissions
 
 
 def remove_unused_pkgs(all_pkgs, submissions):
@@ -233,9 +245,12 @@ def generate_kmeans_data(n_clusters, random_state, n_processors, submissions):
 def main(random_state, n_clusters, n_processors, popcon_entries_path,
          output_folder):
 
+    print "Loading all packages"
+    all_pkgs = get_all_pkgs()
+
     print "Loading popcon submissions"
-    all_pkgs, submissions = get_popcon_submissions(popcon_entries_path,
-                                                   n_processors)
+    submissions = get_popcon_submissions(all_pkgs, popcon_entries_path,
+                                         n_processors)
 
     print "Remove unused packages"
     all_pkgs, submissions = remove_unused_pkgs(all_pkgs, submissions)
