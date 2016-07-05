@@ -2,7 +2,7 @@
 
 import argparse
 import commands
-import gzip
+import glob
 import os
 import random
 import re
@@ -18,7 +18,7 @@ from sklearn.cluster import MiniBatchKMeans
 CLUSTERS_FILE = 'clusters.txt'
 PKGS_CLUSTERS = 'pkgs_clusters.txt'
 
-MIRROR_BASE = "/srv/chroot/unstable-amd64.tar.gz"
+MIRROR_BASE = '/srv/mirrors/debian'
 
 PERCENT_USERS_FOR_RATE = 0.05
 
@@ -40,20 +40,34 @@ def print_percentage(number, n_numbers, message='Percent', bar_length=40):
         print '\n'
 
 
-def read_all_pkgs(filename):
-    match = re.compile(r'^Package:\s(.+)', re.MULTILINE)
+def read_all_pkgs(mirror_path):
+    pkgs = set()
+    glob_mirror_path = glob.glob(mirror_path)
+    len_files = len(glob_mirror_path)
 
-    infile = gzip.open(filename, 'r')
-    text = infile.read()
-    pkgs = list(set(match.findall(text)))
-    infile.close()
+    for index, file_path in enumerate(glob_mirror_path):
+        match = re.compile(r'^Package:\s(.+)', re.MULTILINE)
+
+        text = commands.getoutput('zcat {}'.format(file_path))
+        pkgs |= set(match.findall(text))
+
+        print_percentage(index + 1, len_files)
 
     return pkgs
 
 
 def get_all_pkgs():
-    pkgs = read_all_pkgs(MIRROR_BASE)
-    pkgs = sorted(pkgs)
+    pkgs = set()
+    stable = '%s/dists/stable/*/binary-i386/Packages.gz' % MIRROR_BASE
+    unstable = '%s/dists/unstable/*/binary-i386/Packages.gz' % MIRROR_BASE
+
+    print 'Loading packages on files of stable'
+    pkgs |= read_all_pkgs(stable)
+
+    print 'Loading packages on files of unstable'
+    pkgs |= read_all_pkgs(unstable)
+
+    pkgs = sorted(list(pkgs))
 
     all_pkgs = [pkg for pkg in pkgs if not re.match(r'^lib.*', pkg) and
                 not re.match(r'.*doc$', pkg)]
