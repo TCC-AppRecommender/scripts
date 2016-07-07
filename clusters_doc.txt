@@ -28,8 +28,11 @@ The script to create clusters using popularity-contest submissions is the
 one named create_popcon_clusters.py. This script groups similar submissions into
 clusters, by analising popularity-contest submission's packages.
 
-The first step of this script is to get all ordered Debian packages with the
-following command `$ apt-cache pkgnames`, then remove libraries and documents
+The first step of this script is to get all Debian packages in Packages.gz
+on /srv/mirrors/debian/dists/stable/*/binary-i386/Packages.gz and
+/srv/mirrors/debian/dists/unstable/*/binary-i386/Packages.gz, those Packages.gz
+can be founded on ftp://ftp.br.debian.org. After collect all packages names
+then those are ordered and are removed libraries and documents
 with the regex '^lib.*' and '.*doc$'.
 
 The second step is to create a submissions matrix, where each line is a
