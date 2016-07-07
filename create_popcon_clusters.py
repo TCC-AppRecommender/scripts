@@ -40,7 +40,7 @@ def print_percentage(number, n_numbers, message='Percent', bar_length=40):
         print '\n'
 
 
-def read_all_pkgs(mirror_path):
+def read_pkgs_from_file(mirror_path):
     pkgs = set()
     glob_mirror_path = glob.glob(mirror_path)
     len_files = len(glob_mirror_path)
@@ -62,10 +62,10 @@ def get_all_pkgs():
     unstable = '%s/dists/unstable/*/binary-i386/Packages.gz' % MIRROR_BASE
 
     print 'Loading packages on files of stable'
-    pkgs |= read_all_pkgs(stable)
+    pkgs |= read_pkgs_from_file(stable)
 
     print 'Loading packages on files of unstable'
-    pkgs |= read_all_pkgs(unstable)
+    pkgs |= read_pkgs_from_file(unstable)
 
     pkgs = sorted(list(pkgs))
 
@@ -75,8 +75,8 @@ def get_all_pkgs():
     return all_pkgs
 
 
-def get_submissions(all_pkgs, submissions_paths, n_submission_index,
-                    n_submission_paths, len_submissions, out_queue):
+def get_submissions(all_pkgs, submissions_paths, n_submissions_paths,
+                    len_submissions, out_queue):
     all_pkgs_np = np.array(all_pkgs)
 
     cols = len(all_pkgs)
@@ -94,9 +94,9 @@ def get_submissions(all_pkgs, submissions_paths, n_submission_index,
         submissions[n_file, indices] = 1
 
         n_file += 1
-        n_submission_paths.value += 1
+        n_submissions_paths.value += 1
 
-        print_percentage(n_submission_paths.value, len_submissions)
+        print_percentage(n_submissions_paths.value, len_submissions)
 
     out_queue.put(submissions)
 
@@ -107,7 +107,7 @@ def get_popcon_submissions(all_pkgs, popcon_entries_path, n_processors):
     random.shuffle(submissions_paths)
 
     manager = Manager()
-    n_submission_paths = manager.Value('i', 0)
+    n_submissions_paths = manager.Value('i', 0)
 
     out_queues = []
     process_submissions = []
@@ -127,7 +127,7 @@ def get_popcon_submissions(all_pkgs, popcon_entries_path, n_processors):
         out_queue = Queue()
         process_submission = Process(
             target=get_submissions, args=(all_pkgs, submissions_paths_block,
-                                          index, n_submission_paths,
+                                          n_submissions_paths,
                                           len_submissions, out_queue))
         process_submission.start()
         out_queues.append(out_queue)
@@ -135,8 +135,8 @@ def get_popcon_submissions(all_pkgs, popcon_entries_path, n_processors):
 
     out_queue = Queue()
     submissions_paths_block = submissions_paths[:block]
-    get_submissions(all_pkgs, submissions_paths_block, 0,
-                    n_submission_paths, len_submissions, out_queue)
+    get_submissions(all_pkgs, submissions_paths_block, n_submissions_paths,
+                    len_submissions, out_queue)
 
     submissions = [out_queue.get()]
     for out_queue in out_queues:
