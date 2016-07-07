@@ -105,6 +105,12 @@ def get_popcon_submissions(all_pkgs, popcon_entries_path, n_processors):
     command = 'find {}* -type f'.format(popcon_entries_path)
     submissions_paths = commands.getoutput(command).splitlines()
     random.shuffle(submissions_paths)
+    initial_index = 0
+    if len(submissions_paths) < 1000:
+        initial_index = len(submissions_paths) / 10
+    else:
+        initial_index = 100
+    submissions_paths = submissions_paths[initial_index:]
 
     manager = Manager()
     n_submissions_paths = manager.Value('i', 0)
