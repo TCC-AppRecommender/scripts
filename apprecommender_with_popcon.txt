@@ -1,0 +1,181 @@
+- Utilization of popularity-contest data on AppRecommender:
+
+  Recommender systems are widely used to help people find what they need,
+mainly when have so many options that makes impossible to user know all
+options. Systems with a large number of options, like the Netflix and the
+Amazon, uses recommender systems to help your users to find good options to
+your profiles. These systems identifies the user choices and find other users
+that makes similar choices, then these systems take the options chosen by
+these similar users that the user did not choose and recommends these options
+to the user. So these recommendation systems use a collaborative approach to
+make good recommendations that help their users.
+
+  For Debian has the AppRecommenderm created by Debian Developer Tassia, on
+this work she implements some strategies, amongst them the content based and
+the collaborative strategy. Tassia makes a study with users to identify the
+quality of the strategies, as a result she found that collaborative strategy
+it showed better results than the content based strategy.
+
+  The collaborative strategy of AppRecommender was implemented using the
+popularity-contest data, but currently the AppRecommender has only the content
+based strategy. The problem with collaborative strategy was that necessary have
+the popularity-contest data on the users computer, so this strategy was removed
+because this broken the popularity-contest privacy terms.
+
+  Currently the AppRecommender is a project on Google Summer of Code, and in a
+conversation with Debian community on IRC channels came the idea to use the
+data of popularity-contest to improve the recommendations.
+
+  This proposal is to use the popularity-contest data on AppRecommender
+without broken the privacy terms, and contribute with popularity-contest
+adding a new statistical data on popularity-contest server that can be used by
+another applications.
+
+  The popularity-contest is an application that is mainly used on Debian to
+understand which are the most popular packages on the distribution and to
+select which packages should be included on CD/DVD installer. The application
+achieves that by collecting of each of its users a popularity-contest
+submission. This submission is basically a list of all the packages an user has
+installed on the system and the last time of use of each package. A
+popularity-contest submission is provided with the following format:
+
+POPULARITY-CONTEST-0 TIME:1469645265 ID:596876bc37dd6d3f5cd97feebeb555e0 ARCH:amd64 POPCONVER:1.64 VENDOR:Debian
+1469620800 1465819200 gnome-themes-standard /usr/lib/x86_64-linux-gnu/gtk-2.0/2.10.0/engines/libadwaita.so
+1469620800 1465516800 libnl-route-3-200 /usr/lib/x86_64-linux-gnu/libnl-route-3.so.200.22.0
+1469620800 1465516800 libruby2.3 /usr/lib/ruby/2.3.0/rdoc/generator/template/darkfish/fonts/Lato-Regular.ttf
+1469620800 1465516800 dconf-gsettings-backend /usr/lib/x86_64-linux-gnu/gio/modules/libdconfsettings.so
+1469620800 1465516800 python-dbus /usr/lib/python2.7/dist-packages/_dbus_glib_bindings.x86_64-linux-gnu.so
+1469620800 1465516800 cinnamon /usr/lib/x86_64-linux-gnu/cinnamon/libcinnamon.so
+1469620800 1465516800 libclutter-1.0-0 /usr/lib/x86_64-linux-gnu/libclutter-1.0.so.0.2600.0
+1469620800 1465516800 udev /lib/systemd/systemd-udevd
+1469620800 1466942400 cups-daemon /usr/sbin/cupsd
+
+  Each line of popularity-contest submission has the following information:
+    * atime: The most recent time that a package file was accessed.
+    * ctime: the last time a package file was updated or created.
+    * package name: The name of the package
+    * mru file: The most recent used file on the package.
+
+  Therefore, this data basically lists for each user, the most recent
+applications that he have used. A popularity-contest's submission is generated
+every day and all of these submissions are also sent daily to the
+popularity-contest server. With that information for a huge number of users,
+popularity-contest can them publish some statistics about the use of some
+packages, such as the number of users that have a given package and the most
+popular packages on the distribution.
+
+  One of the other uses that the popularity-contest's data can be used for, is
+for clustering purposes. A cluster is basically a set of items with similar
+characteristics. For example, a cluster can be created that aggregates all the
+text editors on Debian, another one can be created that has all python
+applications. Although this can be done without popularity-contest data, the
+idea of clustering popularity-contest data is not to cluster packages, but its
+users. For example, it would be possible to create several clusters with users
+with similar packages. One of the uses that this clusters could have is in the
+process of recommendation. For example, given an user, we could find to which
+user cluster he belongs and them recommend packages from users inside these
+cluster and the current user does not have.
+
+  Part of this proposal its to add a cluster data on popularity-contest, so as
+explained, this clusters can help another Debian applications to improve their
+features. It also must be said that is necessary to define how the
+clusterization process will work.
+
+  First, it is necessary to identify which Debian package will be used and
+generate a list containing those packages. Currently, it is being used packages
+from both unstable and stable distribution. Now, consider that the following
+package's list:
+
+    - Debian packages: git, gedit, vagrant, vim.
+
+  The second step on the process is to identify on each submission the package
+that it has. Once that is done, a list for each submission is generated. This
+list is a binary one, where for each package that a submission can have, it is
+marked if that submission has the package or not. This can be seen better on
+the following table:
+
+    - Debian packages:     git, gedit, vagrant, vim.
+    - submission one:       1     0       1      0
+    - submission two:       0     0       1      1
+
+  It can be seen that submission one has only the packages git and vagrant,
+but not gedit and vim. For submission two, it can be seen that it has both
+vagrant and vim, but not git and gedit.
+
+  Therefore, every submission will be transformed on a bnary vector. At the
+end, this will produce a matrix where each row represents a submission and
+each column, a package.
+
+  1     0       1      0
+  0     0       1      1
+
+  This matrix is them used to actually creates the users clusters. Therefore,
+two separate files are generated by the clustering process. The first file has
+all the coordinates of all the calculated clusters. This is mainly used to
+place a new user on a cluster. The second file has a list of packages
+containing for each package, the cluster that it appears. For example, vim
+could be found on cluster 0, 1 and 3. This file also shows for each package,
+the number of times a package appear on a given cluster. For example, on
+cluster 0, 3 users have the package vim. This file can be seen on the
+following example:
+
+    vim: 0:3, 1:2, 5:1
+
+  Where the first number is the cluster id and the second is the number of
+appearances of this package on the cluster. The main reason behind these files
+is after identifying to which cluster an user belongs to, also identify which
+packages can be recommended.
+
+  With this cluster data the AppRecommender can runs popularity-contest on user
+computer to find which cluster the user belongs to, and then makes a
+collaborative strategy when generates recommendations with the packages of this
+cluster.
+
+
+  The approval of this work will contribute with Debian community, both
+contributing with popularity-contest, as providing data that can be helper
+another applications, and improving the AppRecommender to generates good
+recommendations to Debian users.
+
+
+- Privacy risks involved with publishing the cluster data:
+
+  The most relevant privacy risk involved in publishing the cluster data is to
+identify a popularity-contest users, because the cluster data contains packages
+of Debian users, therefore its possible to identify an user using these
+clusters. This is a problem that can involve several risks to users, because if
+a user has been identified by a malicious person, this person can attack the
+user, one type of attack its using a security flaw of any user packages.
+Other risks if an user is identified, like use these informations to identify
+the user into another system.
+
+  Another risk is that an attacker can modify the cluster data while it is
+being transferred to the user, like a man in the middle attack, or a directly
+attack on server, where this can modify the cluster data to manipulates this
+information in favor of the attacker.
+
+
+- Measures taken to minimize those risks:
+
+  To minimize the risk of identifying an users, some measures can be taken.
+One of these measures is the anonymization, that involves removing any
+identifying information from the data. Therefore the only data of users that
+available on clusters is the packages. Even knowing that the only information
+of users is the packages, some measures are taken to protect the users, like
+discard packages that are used only by a few users, because considering that
+there is a package which is installed only by two users, this can improve the
+chance of identifying an user that is using this package. Another measure is
+randomly sort popularity-contest submissions before using them to generate the
+clusters, and remove a portion of this submissions, reducing the chance of
+identify an user, because the clusters don't have packages of all users.
+
+  Another measure is randomization, where a random package is added for each
+user submission. Although this decreases the clusters precision, this also
+improves the users privacy, because this action add a degree of uncertainty
+about users' packages.
+
+  Furthermore, it is necessary to identify an attack that can modify the
+cluster data. In this case it is used an InRelease file, this content contains
+the files of cluster data and their checksum. This files are encrypted,
+therefore, it is possible to check if data has been corrupted when they are
+transferred from server to user.
