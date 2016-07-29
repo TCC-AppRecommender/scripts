@@ -1,0 +1,40 @@
+Hi, my name is Luciano Prestes, I am participating in the program Google Summer of Code (GSoC), my mentor is Antonio
+Terceiro, and my co-mentor is Tassia Camoes, both are Debian Developers. The project that I am contributing is the
+AppRecommender, which is a package recommender for Debian systems, my goal is to add a new strategy of recommendation to
+AppRecommender, to make it recommend packages after the user installs a new package with 'apt'.
+
+At principle AppRecommender has three recommendation strategies, being them, content-based, collaborative and hybrid.
+To my work on GSoC this text explains two of these strategies, content-based and collaborative. Content-based strategy
+get the user packages and analyzes yours descriptions to find another Debian packages that they are similar to the
+user packages, so AppRecommender uses the content of user packages to recommender similar packages to user. The
+collaborative strategy compare the user packages with the packages of another users, and then recommends packages
+that users with similar profile have, where a profile of user is your packages. On her work, Tassia Camoes uses the
+popularity-contest data to compare the users profiles on the collaborative strategy, the popularity-contest is an
+application that get the users packages into a submission and send to the popularity-contest server and generates
+statistical data analyzing the users packages.
+
+I have been working with a classmate on our bachelor thesis since August 2015, in our work we created new strategies
+to AppRecommender, one using machine-learning and another using a deterministic method to generates the recommendation,
+another feature that we implemented its improve the user profile using the recently used packages to makes the profile.
+During our work we study the collaborative strategy and analyzed that strategy and remove it from AppRecommender,
+because this implementation of collaborative strategy needs to get the popularity-contest submissions on the user's pc,
+and this is against the privacy policy of popularity-contest.
+
+My work on Google Summer of Code is create a new strategy on AppRecommender, as described above, where this strategy
+should be able to get an referenced package, or a list of referenced packages, then analyze the users packages making
+a recommendation using the referenced packages such as base, example: if users run "$ sudo apt install vim", the
+AppRecommender use "vim" as referenced package, and should recommender packages with relation between "vim" and
+the other packages that user has installed. This new strategy can be implemented like a content-based strategy, or
+the collaborative strategy.
+
+The first month of Google Summer of Code its destined to students knows the community of the project, so I talk
+with the Debian community about my project, to get feedback and ideas about the project. I talk with Debian community
+on IRC channels, and then came the idea to use the data of popularity-contest to improve the recommendations. Talking
+with my mentors, they approve the idea of usage popularity-contest data, so we started a discussion about how to use
+the popularity-contest data on AppRecommender without broken the privacy policy of popularity-contest.
+
+Now my work on Google Summer of Code is create the new strategy for AppRecommender that can makes recommendation
+using a list of packages as reference, so as explained above, when user install packages like "sudo apt install vim vagrant",
+AppRecommender should recommends packages with relation between the packages "vim" and "vagrant", and this
+recommendation should be relation with the user profile. The other work its use the popularity-contest data to
+improve the recommendations of AppRecommender using a new model of collaborative strategies.
