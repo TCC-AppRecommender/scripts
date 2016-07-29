@@ -43,29 +43,26 @@ def print_percentage(number, n_numbers, message='Percent', bar_length=40):
 def read_pkgs_from_file(mirror_path):
     pkgs = set()
     glob_mirror_path = glob.glob(mirror_path)
-    len_files = len(glob_mirror_path)
+    pkgs_regex = re.compile(r'^Package:\s(.+)', re.MULTILINE)
 
-    for index, file_path in enumerate(glob_mirror_path):
-        match = re.compile(r'^Package:\s(.+)', re.MULTILINE)
-
+    for file_path in glob_mirror_path:
         text = commands.getoutput('zcat {}'.format(file_path))
-        pkgs |= set(match.findall(text))
-
-        print_percentage(index + 1, len_files)
+        pkgs |= set(pkgs_regex.findall(text))
 
     return pkgs
 
 
 def get_all_pkgs():
     pkgs = set()
-    stable = '%s/dists/stable/*/binary-i386/Packages.gz' % MIRROR_BASE
-    unstable = '%s/dists/unstable/*/binary-i386/Packages.gz' % MIRROR_BASE
+    mirror = '{}/dists/{}/*/binary-i386/Packages.gz'
+    stable_mirror = mirror.format(MIRROR_BASE, 'stable')
+    unstable_mirror = mirror.format(MIRROR_BASE, 'unstable')
 
     print 'Loading packages on files of stable'
-    pkgs |= read_pkgs_from_file(stable)
+    pkgs |= read_pkgs_from_file(stable_mirror)
 
     print 'Loading packages on files of unstable'
-    pkgs |= read_pkgs_from_file(unstable)
+    pkgs |= read_pkgs_from_file(unstable_mirror)
 
     pkgs = sorted(list(pkgs))
 
@@ -79,17 +76,17 @@ def get_submissions(all_pkgs, submissions_paths, n_submissions_paths,
                     len_submissions, out_queue):
     all_pkgs_np = np.array(all_pkgs)
 
-    cols = len(all_pkgs)
-    rows = len(submissions_paths)
-    submissions = sp.lil_matrix((rows, cols), dtype=np.uint8)
+    matrix_dimensions = (len(submissions_paths), len(all_pkgs))
+    submissions = sp.lil_matrix(matrix_dimensions, dtype=np.uint8)
+
+    pkg_regex = re.compile(r'^\d+\s\d+\s([^\/\s]+)(?!.*<NOFILES>)',
+                           re.MULTILINE)
+
     n_file = 0
-
-    match = re.compile(r'^\d+\s\d+\s([^\/\s]+)(?!.*<NOFILES>)', re.MULTILINE)
-
     for file_path in submissions_paths:
         text = commands.getoutput('cat {}'.format(file_path))
 
-        pkgs = match.findall(text)
+        pkgs = pkg_regex.findall(text)
         indices = np.where(np.in1d(all_pkgs_np, pkgs))[0]
         submissions[n_file, indices] = 1
 
@@ -101,7 +98,7 @@ def get_submissions(all_pkgs, submissions_paths, n_submissions_paths,
     out_queue.put(submissions)
 
 
-def get_popcon_submissions(all_pkgs, popcon_entries_path, n_processors):
+def get_submissions_paths(popcon_entries_path):
     command = 'find {}* -type f'.format(popcon_entries_path)
     submissions_paths = commands.getoutput(command).splitlines()
     random.shuffle(submissions_paths)
@@ -111,6 +108,12 @@ def get_popcon_submissions(all_pkgs, popcon_entries_path, n_processors):
     else:
         initial_index = 100
     submissions_paths = submissions_paths[initial_index:]
+
+    return submissions_paths
+
+
+def get_popcon_submissions(all_pkgs, popcon_entries_path, n_processors):
+    submissions_paths = get_submissions_paths(popcon_entries_path)
 
     manager = Manager()
     n_submissions_paths = manager.Value('i', 0)
@@ -289,6 +292,7 @@ def main(random_state, n_clusters, n_processors, popcon_entries_path,
     pkgs_clusters = create_pkgs_clusters(all_pkgs, submissions,
                                          submissions_clusters, len(clusters))
 
+    import ipdb; ipdb.set_trace()
     save_data(all_pkgs, clusters, pkgs_clusters, output_folder)
 
     print "\nFinish, files saved on: {}".format(output_folder)
