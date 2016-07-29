@@ -1,37 +1,40 @@
 - Utilization of popularity-contest data on AppRecommender:
 
   Recommender systems are widely used to help people find what they need,
-mainly when have so many options that makes impossible to user know all
-options. Systems with a large number of options, like the Netflix and the
-Amazon, uses recommender systems to help your users to find good options to
-your profiles. These systems identifies the user choices and find other users
+mainly when they have so many options that makes it really hard to an user know
+all options. Systems with a large number of options, like Netflix and
+Amazon, use recommender systems to help their users on finding good options
+for them. These systems identifies the user choices and find other users
 that makes similar choices, then these systems take the options chosen by
 these similar users that the user did not choose and recommends these options
-to the user. So these recommendation systems use a collaborative approach to
+to the user. These recommendation systems use a collaborative approach to
 make good recommendations that help their users.
 
-  For Debian has the AppRecommenderm created by Debian Developer Tassia, on
-this work she implements some strategies, amongst them the content based and
-the collaborative strategy. Tassia makes a study with users to identify the
+  For Debian, an application was created with that idea in mind, named
+  AppRecommender. This recommender system was created by Debian Developer
+Tassia Camões Araújo. AppRecommender basically recommends new packages based
+on the user's already installed ones. In order to that, AppRecommender
+implements some strategies, amongst them the content based and
+the collaborative strategy. Tassia made a study with users to identify the
 quality of the strategies, as a result she found that collaborative strategy
-it showed better results than the content based strategy.
+showed better results than the content based strategy.
 
-  The collaborative strategy of AppRecommender was implemented using the
-popularity-contest data, but currently the AppRecommender has only the content
-based strategy. The problem with collaborative strategy was that necessary have
-the popularity-contest data on the users computer, so this strategy was removed
-because this broken the popularity-contest privacy terms.
+  The collaborative strategy of AppRecommender was implemented using
+popularity-contest data, but currently, AppRecommender has only content
+based strategies. The problem with collaborative strategy was the necessity to
+have popularity-contest data on the user's computer, so this strategy was
+removed because this could not be properly distributed.
 
-  Currently the AppRecommender is a project on Google Summer of Code, and in a
+  Currently AppRecommender is a project on Google Summer of Code, and in a
 conversation with Debian community on IRC channels came the idea to use the
 data of popularity-contest to improve the recommendations.
 
-  This proposal is to use the popularity-contest data on AppRecommender
-without broken the privacy terms, and contribute with popularity-contest
-adding a new statistical data on popularity-contest server that can be used by
-another applications.
+  This proposal is to use popularity-contest data on AppRecommender without
+breaking the privacy terms, and contribute with popularity-contest adding a new
+statistical data on popularity-contest server that can be used by another
+applications.
 
-  The popularity-contest is an application that is mainly used on Debian to
+  Popularity-contest is an application that is mainly used on Debian to
 understand which are the most popular packages on the distribution and to
 select which packages should be included on CD/DVD installer. The application
 achieves that by collecting of each of its users a popularity-contest
@@ -130,7 +133,6 @@ packages can be recommended.
 computer to find which cluster the user belongs to, and then makes a
 collaborative strategy when generates recommendations with the packages of this
 cluster.
-
 
   The approval of this work will contribute with Debian community, both
 contributing with popularity-contest, as providing data that can be helper
