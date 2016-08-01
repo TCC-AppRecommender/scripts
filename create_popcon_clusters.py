@@ -221,12 +221,15 @@ def create_pkgs_clusters(all_pkgs, submissions, submissions_clusters,
 def compress_file(output_folder, file_name):
     compressed_file_name = '{}.tar.xz'.format(file_name)
     compress_command = 'tar c {} | xz > {}'.format(file_name,
-                                                    compressed_file_name)
-    commands.getoutput(compress_command)
+                                                   compressed_file_name)
     os.remove(file_name)
     if os.path.exists(output_folder + compressed_file_name):
         os.remove(output_folder + compressed_file_name)
-    shutil.move('{}.tar.xz'.format(file_name), output_folder)
+
+    commands.getoutput(compress_command)
+
+    if not os.path.exists(output_folder + compressed_file_name):
+        shutil.move(compressed_file_name, output_folder)
 
 
 def save_clusters(clusters, output_folder):
