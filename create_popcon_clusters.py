@@ -12,6 +12,7 @@ import numpy as np
 import scipy.sparse as sp
 
 from multiprocessing import Process, Queue, Manager
+from shutil import move
 from sklearn.cluster import MiniBatchKMeans
 
 
@@ -217,6 +218,13 @@ def create_pkgs_clusters(all_pkgs, submissions, submissions_clusters,
     return pkgs_clusters
 
 
+def compress_file(file_folder, file_name):
+    compress_command = 'tar c {0} | xz > {0}.tar.xz'.format(file_name)
+    commands.getoutput(compress_command)
+    os.remove(file_name)
+    move('{}.tar.xz'.format(file_name), file_folder)
+
+
 def save_clusters(clusters, output_folder):
     lines = []
     len_clusters = len(clusters)
@@ -226,8 +234,10 @@ def save_clusters(clusters, output_folder):
         lines.append(line)
         print_percentage(index + 1, len_clusters)
 
-    with open(output_folder + CLUSTERS_FILE, 'w') as text:
+    with open(CLUSTERS_FILE, 'w') as text:
         text.write("\n".join(lines))
+
+    compress_file(output_folder, CLUSTERS_FILE)
 
 
 def save_pkgs_clusters(all_pkgs, pkgs_clusters, output_folder):
@@ -242,8 +252,10 @@ def save_pkgs_clusters(all_pkgs, pkgs_clusters, output_folder):
         lines.append(line)
         print_percentage(index, pkgs_clusters.shape[0])
 
-    with open(output_folder + PKGS_CLUSTERS, 'w') as text:
+    with open(PKGS_CLUSTERS, 'w') as text:
         text.write("\n".join(lines))
+
+    compress_file(output_folder, PKGS_CLUSTERS)
 
 
 def save_data(all_pkgs, clusters, pkgs_clusters, output_folder):
