@@ -55,7 +55,7 @@ def read_pkgs_from_file(mirror_path):
 
 def get_all_pkgs():
     pkgs = set()
-    mirror = '{}/dists/{}/*/binary-i386/Packages.gz'
+    mirror = '{}/dists/{}/*/binary-i386/Packages.xz'
     stable_mirror = mirror.format(MIRROR_BASE, 'stable')
     unstable_mirror = mirror.format(MIRROR_BASE, 'unstable')
 
