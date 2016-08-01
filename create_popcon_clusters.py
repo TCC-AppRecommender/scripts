@@ -219,17 +219,14 @@ def create_pkgs_clusters(all_pkgs, submissions, submissions_clusters,
 
 
 def compress_file(output_folder, file_name):
-    compressed_file_name = '{}.tar.xz'.format(file_name)
+    compressed_file_name = '{}.tar.xz'.format(file_name.split('.')[0])
     compress_command = 'tar c {} | xz > {}'.format(file_name,
                                                    compressed_file_name)
-    os.remove(file_name)
     if os.path.exists(output_folder + compressed_file_name):
         os.remove(output_folder + compressed_file_name)
 
     commands.getoutput(compress_command)
-
-    if not os.path.exists(output_folder + compressed_file_name):
-        shutil.move(compressed_file_name, output_folder)
+    os.remove(file_name)
 
 
 def save_clusters(clusters, output_folder):
@@ -265,29 +262,40 @@ def save_pkgs_clusters(all_pkgs, pkgs_clusters, output_folder):
     compress_file(output_folder, PKGS_CLUSTERS)
 
 
+def move_compressed_file(output_folder, original_file_name):
+    original_file_name = original_file_name.split('.')[0]
+    compressed_file_name = '{}.tar.xz'.format(original_file_name)
+
+    if not os.path.exists(output_folder + compressed_file_name):
+        shutil.move(compressed_file_name, output_folder)
+
+
 def generate_inrelease_file(output_folder):
-    run_command = True
+    inrelease_command = 'sha256sum *.xz | gpg --clearsign > InRelease'
+    commands.getoutput(inrelease_command)
 
-    inrelease_command = 'sha256sum {0}*.xz | gpg --clearsign > {0}InRelease'
-    inrelease_command = inrelease_command.format(output_folder)
+    if os.path.exists(output_folder + 'InRelease'):
+        os.remove(output_folder + 'InRelease')
 
-    while run_command:
-        commands.getoutput(inrelease_command)
-        run_command = False
+    shutil.move('InRelease', output_folder)
 
 
 def save_data(all_pkgs, clusters, pkgs_clusters, output_folder):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
-    print "Saving clusters.txt"
+    print "Saving clusters.tar.xz"
     save_clusters(clusters, output_folder)
 
-    print "Saving pkgs_clusters.txt"
+    print "Saving pkgs_clusters.tar.xz"
     save_pkgs_clusters(all_pkgs, pkgs_clusters, output_folder)
 
     print "Generating InRelease file"
     generate_inrelease_file(output_folder)
+
+    move_compressed_file(output_folder, CLUSTERS_FILE)
+    move_compressed_file(output_folder, PKGS_CLUSTERS)
+    print "Finish, files saved on: {}".format(output_folder)
 
 
 def generate_kmeans_data(n_clusters, random_state, n_processors, submissions):
@@ -326,8 +334,6 @@ def main(random_state, n_clusters, n_processors, popcon_entries_path,
                                          submissions_clusters, len(clusters))
 
     save_data(all_pkgs, clusters, pkgs_clusters, output_folder)
-
-    print "\nFinish, files saved on: {}".format(output_folder)
 
 
 def get_expand_folder_path(folder_path):
