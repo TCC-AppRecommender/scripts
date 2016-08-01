@@ -1,6 +1,7 @@
 *.pyc
 *popcon
 *.xz
+InRelease
 clusters.txt
 pkgs_clusters.txt
 *.egg-info/

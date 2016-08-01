@@ -6,13 +6,13 @@ import glob
 import os
 import random
 import re
+import shutil
 import sys
 
 import numpy as np
 import scipy.sparse as sp
 
 from multiprocessing import Process, Queue, Manager
-from shutil import move
 from sklearn.cluster import MiniBatchKMeans
 
 
@@ -218,11 +218,15 @@ def create_pkgs_clusters(all_pkgs, submissions, submissions_clusters,
     return pkgs_clusters
 
 
-def compress_file(file_folder, file_name):
-    compress_command = 'tar c {0} | xz > {0}.tar.xz'.format(file_name)
+def compress_file(output_folder, file_name):
+    compressed_file_name = '{}.tar.xz'.format(file_name)
+    compress_command = 'tar c {} | xz > {}'.format(file_name,
+                                                    compressed_file_name)
     commands.getoutput(compress_command)
     os.remove(file_name)
-    move('{}.tar.xz'.format(file_name), file_folder)
+    if os.path.exists(output_folder + compressed_file_name):
+        os.remove(output_folder + compressed_file_name)
+    shutil.move('{}.tar.xz'.format(file_name), output_folder)
 
 
 def save_clusters(clusters, output_folder):
@@ -258,6 +262,17 @@ def save_pkgs_clusters(all_pkgs, pkgs_clusters, output_folder):
     compress_file(output_folder, PKGS_CLUSTERS)
 
 
+def generate_inrelease_file(output_folder):
+    run_command = True
+
+    inrelease_command = 'sha256sum {0}*.xz | gpg --clearsign > {0}InRelease'
+    inrelease_command = inrelease_command.format(output_folder)
+
+    while run_command:
+        commands.getoutput(inrelease_command)
+        run_command = False
+
+
 def save_data(all_pkgs, clusters, pkgs_clusters, output_folder):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
@@ -267,6 +282,9 @@ def save_data(all_pkgs, clusters, pkgs_clusters, output_folder):
 
     print "Saving pkgs_clusters.txt"
     save_pkgs_clusters(all_pkgs, pkgs_clusters, output_folder)
+
+    print "Generating InRelease file"
+    generate_inrelease_file(output_folder)
 
 
 def generate_kmeans_data(n_clusters, random_state, n_processors, submissions):
