@@ -292,7 +292,6 @@ def main(random_state, n_clusters, n_processors, popcon_entries_path,
     pkgs_clusters = create_pkgs_clusters(all_pkgs, submissions,
                                          submissions_clusters, len(clusters))
 
-    import ipdb; ipdb.set_trace()
     save_data(all_pkgs, clusters, pkgs_clusters, output_folder)
 
     print "\nFinish, files saved on: {}".format(output_folder)
@@ -306,7 +305,7 @@ def get_expand_folder_path(folder_path):
     return expand_folder_path
 
 
-if __name__ == '__main__':
+def create_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('popcon_entries_path', type=str,
                         help='path of folder with the popularity-contest '
@@ -320,12 +319,17 @@ if __name__ == '__main__':
     parser.add_argument('-r', '--random_state', type=int, metavar='',
                         default=170, help='Number of processors to be used')
 
+    return parser
+
+
+if __name__ == '__main__':
+    parser = create_parser()
+
     if len(sys.argv) < 2:
         parser.print_help()
         sys.exit(1)
 
     args = parser.parse_args()
-
     args.output = get_expand_folder_path(args.output)
     args.popcon_entries_path = get_expand_folder_path(args.popcon_entries_path)
 
