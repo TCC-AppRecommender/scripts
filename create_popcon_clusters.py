@@ -41,7 +41,7 @@ def print_percentage(number, n_numbers, message='Percent', bar_length=40):
         print '\n'
 
 
-def read_pkgs_from_file(mirror_path):
+def read_pkgs_from_mirror(mirror_path):
     pkgs = set()
     glob_mirror_path = glob.glob(mirror_path)
     pkgs_regex = re.compile(r'^Package:\s(.+)', re.MULTILINE)
@@ -54,31 +54,28 @@ def read_pkgs_from_file(mirror_path):
 
 
 def get_all_pkgs():
-    pkgs = set()
-    mirror = '{}/dists/{}/*/binary-i386/Packages.xz'
+    all_pkgs = set()
+    mirror = '{}/dists/{}/*/binary-i386/Packages.gz'
     stable_mirror = mirror.format(MIRROR_BASE, 'stable')
     unstable_mirror = mirror.format(MIRROR_BASE, 'unstable')
 
-    print 'Loading packages on files of stable'
-    pkgs |= read_pkgs_from_file(stable_mirror)
+    print 'Loading packages names of Debian stable'
+    all_pkgs |= read_pkgs_from_mirror(stable_mirror)
 
-    print 'Loading packages on files of unstable'
-    pkgs |= read_pkgs_from_file(unstable_mirror)
+    print 'Loading packages names of Debian unstable'
+    all_pkgs |= read_pkgs_from_mirror(unstable_mirror)
 
-    pkgs = sorted(list(pkgs))
-
-    all_pkgs = [pkg for pkg in pkgs if not re.match(r'^lib.*', pkg) and
-                not re.match(r'.*doc$', pkg)]
+    all_pkgs = sorted(list(all_pkgs))
 
     return all_pkgs
 
 
-def get_submissions(all_pkgs, submissions_paths, n_submissions_paths,
-                    len_submissions, out_queue):
+def get_submissions_matrix(all_pkgs, submissions_paths, n_readed_submissions,
+                           len_submissions, out_queue):
     all_pkgs_np = np.array(all_pkgs)
 
     matrix_dimensions = (len(submissions_paths), len(all_pkgs))
-    submissions = sp.lil_matrix(matrix_dimensions, dtype=np.uint8)
+    submissions_matrix = sp.lil_matrix(matrix_dimensions, dtype=np.uint8)
 
     pkg_regex = re.compile(r'^\d+\s\d+\s([^\/\s]+)(?!.*<NOFILES>)',
                            re.MULTILINE)
@@ -89,14 +86,14 @@ def get_submissions(all_pkgs, submissions_paths, n_submissions_paths,
 
         pkgs = pkg_regex.findall(text)
         indices = np.where(np.in1d(all_pkgs_np, pkgs))[0]
-        submissions[n_file, indices] = 1
+        submissions_matrix[n_file, indices] = 1
 
         n_file += 1
-        n_submissions_paths.value += 1
+        n_readed_submissions.value += 1
 
-        print_percentage(n_submissions_paths.value, len_submissions)
+        print_percentage(n_readed_submissions.value, len_submissions)
 
-    out_queue.put(submissions)
+    out_queue.put(submissions_matrix)
 
 
 def get_submissions_paths(popcon_entries_path):
@@ -113,48 +110,80 @@ def get_submissions_paths(popcon_entries_path):
     return submissions_paths
 
 
+def get_submissions_path_block(index, submissions_paths, block_size,
+                               n_processors):
+    index += 1
+    begin = index * block_size
+    end = (index + 1) * block_size
+
+    if index < n_processors - 1:
+        submissions_paths_block = submissions_paths[begin:end]
+    else:
+        submissions_paths_block = submissions_paths[begin:]
+
+    return submissions_paths_block
+
+
+def create_one_submission_process(all_pkgs, submissions_paths_block,
+                                  n_readed_submissions, len_submissions):
+    out_queue = Queue()
+    submission_process = Process(
+        target=get_submissions_matrix, args=(all_pkgs, submissions_paths_block,
+                                             n_readed_submissions,
+                                             len_submissions, out_queue))
+    submission_process.start()
+
+    return submission_process, out_queue
+
+
+def create_submissions_processes(submissions_paths, block_size, n_processors,
+                                 all_pkgs, n_readed_submissions):
+    out_queues = []
+    submissions_processes = []
+    len_submissions = len(submissions_paths)
+
+    for index in range(n_processors - 1):
+        submissions_paths_block = get_submissions_path_block(
+            index, submissions_paths, block_size, n_processors)
+
+        process_data = create_one_submission_process(
+            all_pkgs, submissions_paths_block, n_readed_submissions,
+            len_submissions)
+
+        submission_process, out_queue = process_data
+
+        out_queues.append(out_queue)
+        submissions_processes.append(submission_process)
+
+    return submissions_processes, out_queues
+
+
 def get_popcon_submissions(all_pkgs, popcon_entries_path, n_processors):
     submissions_paths = get_submissions_paths(popcon_entries_path)
 
     manager = Manager()
-    n_submissions_paths = manager.Value('i', 0)
+    n_readed_submissions = manager.Value('i', 0)
 
-    out_queues = []
-    process_submissions = []
     len_submissions = len(submissions_paths)
-    block = len_submissions / n_processors
+    block_size = len_submissions / n_processors
 
-    for index in range(n_processors - 1):
-        index += 1
-        begin = index * block
-        end = (index + 1) * block
-
-        if index < n_processors - 1:
-            submissions_paths_block = submissions_paths[begin:end]
-        else:
-            submissions_paths_block = submissions_paths[begin:]
-
-        out_queue = Queue()
-        process_submission = Process(
-            target=get_submissions, args=(all_pkgs, submissions_paths_block,
-                                          n_submissions_paths,
-                                          len_submissions, out_queue))
-        process_submission.start()
-        out_queues.append(out_queue)
-        process_submissions.append(process_submission)
+    processes_data = create_submissions_processes(
+        submissions_paths, block_size, n_processors, all_pkgs,
+        n_readed_submissions)
+    submissions_processes, out_queues = processes_data
 
     out_queue = Queue()
-    submissions_paths_block = submissions_paths[:block]
-    get_submissions(all_pkgs, submissions_paths_block, n_submissions_paths,
-                    len_submissions, out_queue)
+    submissions_paths_block = submissions_paths[:block_size]
+    get_submissions_matrix(all_pkgs, submissions_paths_block,
+                           n_readed_submissions, len_submissions, out_queue)
 
     submissions = [out_queue.get()]
     for out_queue in out_queues:
         submission = out_queue.get()
         submissions.append(submission)
 
-    for process_submission in process_submissions:
-        process_submission.join()
+    for submission_process in submissions_processes:
+        submission_process.join()
 
     submissions = sp.vstack(submissions, 'csr')
 
@@ -272,11 +301,11 @@ def move_compressed_file(output_folder, original_file_name):
 
 def generate_inrelease_file(output_folder):
     inrelease_command = 'sha256sum *.xz | gpg --clearsign > InRelease'
-    commands.getoutput(inrelease_command)
 
     if os.path.exists(output_folder + 'InRelease'):
         os.remove(output_folder + 'InRelease')
 
+    commands.getoutput(inrelease_command)
     shutil.move('InRelease', output_folder)
 
 
@@ -318,7 +347,7 @@ def main(random_state, n_clusters, n_processors, popcon_entries_path,
     submissions = get_popcon_submissions(all_pkgs, popcon_entries_path,
                                          n_processors)
 
-    print "Discarding non packages"
+    print "Discarding non popular packages"
     all_pkgs, submissions = discard_nonpupular_pkgs(all_pkgs, submissions)
 
     print "Filter little used packages"
