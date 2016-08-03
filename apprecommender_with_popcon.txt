@@ -1,46 +1,60 @@
-- Utilization of popularity-contest data on AppRecommender:
+TL;DR
+------------------------------------------------------------------------
 
-  Recommender systems are widely used to help people find what they need,
-mainly when they have so many options that makes it really hard to an user know
-all options. Systems with a large number of options, like Netflix and
-Amazon, use recommender systems to help their users on finding good options
-for them. These systems identifies the user choices and find other users
-that makes similar choices, then these systems take the options chosen by
-these similar users that the user did not choose and recommends these options
-to the user. These recommendation systems use a collaborative approach to
-make good recommendations that help their users.
+This is a proposal for popcon to calculate and publish an additional aggregate
+data set based on user submissions. popcon data is also very valuable, and in
+our opinion it is currently underused. It is also very sensitive, due to being
+provided by individual Debian users, so in this message we describe exactly how
+we propose to create this dataset, and which measures we took to avoid leaking
+information that could be used to identify users.
 
-  For Debian, an application was created with that idea in mind, named
-  AppRecommender. This recommender system was created by Debian Developer
-Tassia CamÃµes AraÃºjo. AppRecommender basically recommends new packages based
-on the user's already installed ones. In order to that, AppRecommender
-implements some strategies, amongst them the content based and
-the collaborative strategy. Tassia made a study with users to identify the
-quality of the strategies, as a result she found that collaborative strategy
-showed better results than the content based strategy.
+Our primary objective is to publish package installation clusters, meaning
+basically sets of packages that are usually installed together. Our goal is to
+use this data for package recommendation, but it could also be used for other
+ends; for example, one could use that data to identify packages that are
+usually used together, and prioritize system upgrade tests that involve those
+packages.
 
-  The collaborative strategy of AppRecommender was implemented using
-popularity-contest data, but currently, AppRecommender has only content
-based strategies. The problem with collaborative strategy was the necessity to
-have popularity-contest data on the user's computer, so this strategy was
-removed because this could not be properly distributed.
+Introduction
+------------------------------------------------------------------------
 
-  Currently AppRecommender is a project on Google Summer of Code, and in a
-conversation with Debian community on IRC channels came the idea to use the
-data of popularity-contest to improve the recommendations.
+Recommender systems are widely used to help people find what they need, mainly
+when they have so many options that it is hard for them to know all of their
+options. Systems with a large number of options, like Netflix and Amazon, use
+recommender systems to help their users to find good options for them. These
+systems identify the user choices, then find other users that makes similar
+choices, then take the options chosen by these similar users that the original
+user did not choose yet and recommend these options to the user. This
+recommendation strategy, which uses data from other users with similar choices,
+is known as collaborative.
 
-  This proposal is to use popularity-contest data on AppRecommender without
-breaking the privacy terms, and contribute with popularity-contest adding a new
-statistical data on popularity-contest server that can be used by another
-applications.
+AppRecommender is an package recommender for Debian which was created by Tassia
+Camões Araújo. AppRecommender basically recommends new packages based on the
+ones the user has already installed. In order to do that, AppRecommender
+implements a few strategies, amongst them the content based, based on the
+package metadata alone (description + debtags), and a collaborative strategy.
+Tassia made a study with users to identify the quality of the strategies, and
+as a result she found that a collaborative strategy produces better results
+than the content based strategy.
 
-  Popularity-contest is an application that is mainly used on Debian to
-understand which are the most popular packages on the distribution and to
-select which packages should be included on CD/DVD installer. The application
-achieves that by collecting of each of its users a popularity-contest
-submission. This submission is basically a list of all the packages an user has
-installed on the system and the last time of use of each package. A
-popularity-contest submission is provided with the following format:
+The collaborative strategy of AppRecommender was implemented using
+popularity-contest data privately, but in practice today AppRecommender has
+only content based strategies. In order to use a collaborative strategy we
+would need to have the popularity-contest data on the user's computer, so this
+strategy was removed because such data could not be properly distributed.
+
+AppRecommender is currently the subject of two Google Summer of Code projects,
+and the idea of using the popularity-contest data resurfaced.
+
+This is a proposal to use popularity-contest data on AppRecommender without
+breaking the privacy terms, and to contribute with popularity-contest by adding
+a new source of statistics to the popularity-contest server that can be used by
+other applications.
+
+How popularity-contest submissions look like
+-----------------------------------------------------------------------
+
+A popularity-contest submission is provided with the following format:
 
 POPULARITY-CONTEST-0 TIME:1469645265 ID:596876bc37dd6d3f5cd97feebeb555e0 ARCH:amd64 POPCONVER:1.64 VENDOR:Debian
 1469620800 1465819200 gnome-themes-standard /usr/lib/x86_64-linux-gnu/gtk-2.0/2.10.0/engines/libadwaita.so
@@ -53,131 +67,130 @@ POPULARITY-CONTEST-0 TIME:1469645265 ID:596876bc37dd6d3f5cd97feebeb555e0 ARCH:am
 1469620800 1465516800 udev /lib/systemd/systemd-udevd
 1469620800 1466942400 cups-daemon /usr/sbin/cupsd
 
-  Each line of popularity-contest submission has the following information:
-    * atime: The most recent time that a package file was accessed.
-    * ctime: the last time a package file was updated or created.
-    * package name: The name of the package
-    * mru file: The most recent used file on the package.
+Each line of a popularity-contest submission has the following information:
 
-  Therefore, this data basically lists for each user, the most recent
-applications that he have used. A popularity-contest's submission is generated
-every day and all of these submissions are also sent daily to the
-popularity-contest server. With that information for a huge number of users,
-popularity-contest can them publish some statistics about the use of some
-packages, such as the number of users that have a given package and the most
-popular packages on the distribution.
+* atime: The most recent time that a package file was accessed.
+* ctime: the last time a package file was updated or created.
+* package name: The name of the package
+* mru file: The most recent used file on the package.
 
-  One of the other uses that the popularity-contest's data can be used for, is
-for clustering purposes. A cluster is basically a set of items with similar
-characteristics. For example, a cluster can be created that aggregates all the
-text editors on Debian, another one can be created that has all python
-applications. Although this can be done without popularity-contest data, the
-idea of clustering popularity-contest data is not to cluster packages, but its
-users. For example, it would be possible to create several clusters with users
-with similar packages. One of the uses that this clusters could have is in the
-process of recommendation. For example, given an user, we could find to which
-user cluster he belongs and them recommend packages from users inside these
-cluster and the current user does not have.
+This data basically lists the most recent applications a user has  used. This
+data is generated daily, and submitted to the popularity-contest server. With
+that information for a huge number of users, popularity-contest can them
+publish some statistics about the use of some packages, such as the number of
+users that have a given package and the most popular packages on the
+distribution.
 
-  Part of this proposal its to add a cluster data on popularity-contest, so as
-explained, this clusters can help another Debian applications to improve their
-features. It also must be said that is necessary to define how the
-clusterization process will work.
+Proposal: clustering popcon data
+------------------------------------------------------------------------
 
-  First, it is necessary to identify which Debian package will be used and
-generate a list containing those packages. Currently, it is being used packages
-from both unstable and stable distribution. Now, consider that the following
-package's list:
+Another possible use of the popcon data would be clustering. In statistics, a
+cluster is a subset of the items in a dataset that have similar characteristics
+according to predefined criteria.
 
-    - Debian packages: git, gedit, vagrant, vim.
+We propose preprocessing the popcon data to create clusters of packages that
+are usually installed and used together. Given an user, we can find the
+clusters of packages that are more similar to the user's packages, and then
+recommend the packages in those clusters that the user doesn't already have
+installed.
 
-  The second step on the process is to identify on each submission the package
-that it has. Once that is done, a list for each submission is generated. This
-list is a binary one, where for each package that a submission can have, it is
-marked if that submission has the package or not. This can be seen better on
-the following table:
+How the clusterization works
+------------------------------------------------------------------------
 
-    - Debian packages:     git, gedit, vagrant, vim.
-    - submission one:       1     0       1      0
-    - submission two:       0     0       1      1
+The first step is to create a list of all possible packages. We are currently
+using binary packages from unstable and stable. For a small example, assume we
+would only consider the following list of packages: git, gedit, vagrant, and
+vim.
 
-  It can be seen that submission one has only the packages git and vagrant,
-but not gedit and vim. For submission two, it can be seen that it has both
-vagrant and vim, but not git and gedit.
+The second step on the process is mapping packages and popcon submissions.  For
+each submission, we generate a list of 0 and 1 values, based on whether that
+submission contains or does not contain the corresponding package in the
+package list. For example:
 
-  Therefore, every submission will be transformed on a bnary vector. At the
-end, this will produce a matrix where each row represents a submission and
-each column, a package.
+  Packages:           git,  gedit,  vagrant, vim.
+  submission 1:       1     0       1        0
+  submission 2:       0     0       1        1
+
+We can seee that submission 1 only contains git and vagrant, and not gedit and
+vim. submission 2 has vagrant and vim, but not git nor gedit.
+
+This way each submission is transformed into a binary vector. At the end, this
+will produce a matrix where each row represents a submission and each column, a
+package.
 
   1     0       1      0
   0     0       1      1
 
-  This matrix is them used to actually creates the users clusters. Therefore,
-two separate files are generated by the clustering process. The first file has
-all the coordinates of all the calculated clusters. This is mainly used to
-place a new user on a cluster. The second file has a list of packages
-containing for each package, the cluster that it appears. For example, vim
-could be found on cluster 0, 1 and 3. This file also shows for each package,
-the number of times a package appear on a given cluster. For example, on
-cluster 0, 3 users have the package vim. This file can be seen on the
-following example:
+This matrix is them used to actually create the user clusters.  The actual
+clustering process is a little complicated, but you can review the actual code
+on the patch attached to this bug report:
 
-    vim: 0:3, 1:2, 5:1
+https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=XXXXXX
 
-  Where the first number is the cluster id and the second is the number of
-appearances of this package on the cluster. The main reason behind these files
-is after identifying to which cluster an user belongs to, also identify which
-packages can be recommended.
+TODO: submit a bug report to popularity-contest with the clusterization script.
+Add the number above.
 
-  With this cluster data the AppRecommender can runs popularity-contest on user
-computer to find which cluster the user belongs to, and then makes a
-collaborative strategy when generates recommendations with the packages of this
-cluster.
+The process produces two data files. The first file has all the coordinates of
+the calculated clusters. This is used to place a new user on a cluster, i.e.
+identify how similar a given user is to each cluster.
 
-  The approval of this work will contribute with Debian community, both
-contributing with popularity-contest, as providing data that can be helper
-another applications, and improving the AppRecommender to generates good
-recommendations to Debian users.
+TODO: describe what "the coordinates of the calculated clusters" look like.
 
+The second lists the clusters in which each package appears. For example:
 
-- Privacy risks involved with publishing the cluster data:
+  vim: 0:3, 1:2, 3:1
 
-  The most relevant privacy risk involved in publishing the cluster data is to
-identify a popularity-contest users, because the cluster data contains packages
-of Debian users, therefore its possible to identify an user using these
-clusters. This is a problem that can involve several risks to users, because if
-a user has been identified by a malicious person, this person can attack the
-user, one type of attack its using a security flaw of any user packages.
-Other risks if an user is identified, like use these informations to identify
-the user into another system.
+This says that vim is on clusters 0, 1 and 3. It also records the number of
+times the package appears on each given cluster. For example, on cluster 0, 3
+users have the package vim.
 
-  Another risk is that an attacker can modify the cluster data while it is
-being transferred to the user, like a man in the middle attack, or a directly
-attack on server, where this can modify the cluster data to manipulates this
-information in favor of the attacker.
+The main reason behind these files is to be able to identify to which cluster
+an user belongs to, also then based on that, calculate which packages can be
+recommended.
 
+Privacy risks involved with publishing the cluster data
+------------------------------------------------------------------------
 
-- Measures taken to minimize those risks:
+The most relevant privacy risk involved in publishing the cluster data is
+allowing popcon users to be identifier through analysis of the cluster data.
+This is a problem that can involve several risks to users, because if a user
+has been identified by a malicious person, this person can attack the user, one
+type of attack its using a security flaw in one of the user packages.  Other
+risk is: if an user is identified, like use these informations to identify the
+user into another system.
 
-  To minimize the risk of identifying an users, some measures can be taken.
+TODO: this "Other risk" needs to be better explained.
+
+Another risk is an attacker modifying the cluster data while it is being
+transferred to the user, with a man in the middle attack, or via a direct
+attack on the server, in a way that may make AppRecommender recommend packages
+that might later be used in favor of the attacker.
+
+Measures taken to minimize those privacy risks
+------------------------------------------------------------------------
+
+To minimize the risk of identifying an users, some measures are taken.
 One of these measures is the anonymization, that involves removing any
 identifying information from the data. Therefore the only data of users that
-available on clusters is the packages. Even knowing that the only information
-of users is the packages, some measures are taken to protect the users, like
-discard packages that are used only by a few users, because considering that
-there is a package which is installed only by two users, this can improve the
-chance of identifying an user that is using this package. Another measure is
-randomly sort popularity-contest submissions before using them to generate the
-clusters, and remove a portion of this submissions, reducing the chance of
-identify an user, because the clusters don't have packages of all users.
+is available on clusters is their list of packages.
 
-  Another measure is randomization, where a random package is added for each
+Even then, some extra measures are taken to protect the users, such as not
+considering packages used by less than a given percentage of users. This avoids
+identifying users of packages that have very few users.
+
+Another measure is to randomly sort popularity-contest submissions before using
+them to generate the clusters, and removing a portion of this submissions. This
+reduces the chances of identifying an individual user, because the clusters
+does not contain data from of all users.
+
+Yet another measure is randomization, where a random package is added for each
 user submission. Although this decreases the clusters precision, this also
-improves the users privacy, because this action add a degree of uncertainty
+improves the users privacy, because this action adds a degree of uncertainty
 about users' packages.
 
-  Furthermore, it is necessary to identify an attack that can modify the
-cluster data. In this case it is used an InRelease file, this content contains
-the files of cluster data and their checksum. This files are encrypted,
-therefore, it is possible to check if data has been corrupted when they are
-transferred from server to user.
+To avoid tampering of the cluster data between the server and user machines,
+the cluster data is first hashed with SHA256, and the resulting release file
+with the hashes is gpg-signed by the popcon server (just like secure APT
+repositories). After downloading the data, AppRecommender first validates the
+gpg signature of the release file, and then validates the hashes of the data
+files.
