@@ -167,12 +167,13 @@ type of attack its using a security flaw in one of the user packages.  Other
 risk is: if an user is identified, like use these informations to identify the
 user into another system.
 
-TODO: this "Other risk" needs to be better explained.
-
 Another risk is an attacker modifying the cluster data while it is being
 transferred to the user, with a man in the middle attack, or via a direct
-attack on the server, in a way that may make AppRecommender recommend packages
-that might later be used in favor of the attacker.
+attack on the server. The both attacks are methods when the attacker can
+grant access to cluster data, and then its possible to him makes changes on
+the clusters data and manipulates the recommendation. An example of this
+manipulation its the attacker makes that all clusters have only the packages
+that he wants to be recommended.
 
 Measures taken to minimize those privacy risks
 ------------------------------------------------------------------------
