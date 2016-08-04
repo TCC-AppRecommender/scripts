@@ -134,7 +134,15 @@ The process produces two data files. The first file has all the coordinates of
 the calculated clusters. This is used to place a new user on a cluster, i.e.
 identify how similar a given user is to each cluster.
 
-TODO: describe what "the coordinates of the calculated clusters" look like.
+The clusters coordinates are on cartesian plane, where the dimensions are the
+Debian packages, for this example, are the git, gedit, vagrant and vim,
+therefore a cluster its a number group that represents how this cluster are
+nearest from these packages.
+
+The coordinates of the calculated clusters file have the following format for
+each line, where each line represents one cluster:
+
+  0.3; 0.15; 0.7; 0.42
 
 The second lists the clusters in which each package appears. For example:
 
