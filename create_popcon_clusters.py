@@ -1,13 +1,15 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import argparse
-import commands
 import glob
+import lzma
 import os
 import random
 import re
 import shutil
+import subprocess
 import sys
+import tarfile
 
 import numpy as np
 import scipy.sparse as sp
@@ -18,6 +20,8 @@ from sklearn.cluster import MiniBatchKMeans
 
 CLUSTERS_FILE = 'clusters.txt'
 PKGS_CLUSTERS = 'pkgs_clusters.txt'
+
+CLUSTERS_FILE_TAR = 'clusters.tar.xz'
 
 MIRROR_BASE = '/srv/mirrors/debian'
 
@@ -38,7 +42,20 @@ def print_percentage(number, n_numbers, message='Percent', bar_length=40):
     sys.stdout.flush()
 
     if number == n_numbers:
-        print '\n'
+        print('\n')
+
+
+def get_tarfile_text(tarfile_path):
+    text = ''
+    tar = tarfile.open(tarfile_path)
+
+    for member in tar.members:
+        ifile = tar.extractfile(member)
+        text = ifile.read().decode('utf-8')
+
+    tar.close()
+
+    return text
 
 
 def read_pkgs_from_mirror(mirror_path):
@@ -47,7 +64,7 @@ def read_pkgs_from_mirror(mirror_path):
     pkgs_regex = re.compile(r'^Package:\s(.+)', re.MULTILINE)
 
     for file_path in glob_mirror_path:
-        text = commands.getoutput('zcat {}'.format(file_path))
+        text = get_tarfile_text(file_path)
         pkgs |= set(pkgs_regex.findall(text))
 
     return pkgs
@@ -55,14 +72,14 @@ def read_pkgs_from_mirror(mirror_path):
 
 def get_all_pkgs():
     all_pkgs = set()
-    mirror = '{}/dists/{}/*/binary-i386/Packages.gz'
+    mirror = '{}/dists/{}/*/binary-i386/Packages.xz'
     stable_mirror = mirror.format(MIRROR_BASE, 'stable')
     unstable_mirror = mirror.format(MIRROR_BASE, 'unstable')
 
-    print 'Loading packages names of Debian stable'
+    print('Loading packages names of Debian stable')
     all_pkgs |= read_pkgs_from_mirror(stable_mirror)
 
-    print 'Loading packages names of Debian unstable'
+    print('Loading packages names of Debian unstable')
     all_pkgs |= read_pkgs_from_mirror(unstable_mirror)
 
     all_pkgs = sorted(list(all_pkgs))
@@ -82,7 +99,10 @@ def get_submissions_matrix(all_pkgs, submissions_paths, n_readed_submissions,
 
     n_file = 0
     for file_path in submissions_paths:
-        text = commands.getoutput('cat {}'.format(file_path))
+        command = 'cat {}'.format(file_path)
+        text = subprocess.check_output(command, shell=True,
+                                       stderr=subprocess.STDOUT)
+        text = text.decode('utf-8')
 
         pkgs = pkg_regex.findall(text)
         indices = np.where(np.in1d(all_pkgs_np, pkgs))[0]
@@ -97,12 +117,15 @@ def get_submissions_matrix(all_pkgs, submissions_paths, n_readed_submissions,
 
 
 def get_submissions_paths(popcon_entries_path):
-    command = 'find {}* -type f'.format(popcon_entries_path)
-    submissions_paths = commands.getoutput(command).splitlines()
+    submissions_paths = []
+    for dirpath, dirnames, filenames in os.walk(popcon_entries_path):
+        submissions_paths += [os.path.join(dirpath, filename)
+                              for filename in filenames]
+
     random.shuffle(submissions_paths)
     initial_index = 0
     if len(submissions_paths) < 1000:
-        initial_index = len(submissions_paths) / 10
+        initial_index = int(len(submissions_paths) / 10)
     else:
         initial_index = 100
     submissions_paths = submissions_paths[initial_index:]
@@ -113,8 +136,8 @@ def get_submissions_paths(popcon_entries_path):
 def get_submissions_path_block(index, submissions_paths, block_size,
                                n_processors):
     index += 1
-    begin = index * block_size
-    end = (index + 1) * block_size
+    begin = int(index * block_size)
+    end = int((index + 1) * block_size)
 
     if index < n_processors - 1:
         submissions_paths_block = submissions_paths[begin:end]
@@ -165,7 +188,7 @@ def get_popcon_submissions(all_pkgs, popcon_entries_path, n_processors):
     n_readed_submissions = manager.Value('i', 0)
 
     len_submissions = len(submissions_paths)
-    block_size = len_submissions / n_processors
+    block_size = int(len_submissions / n_processors)
 
     processes_data = create_submissions_processes(
         submissions_paths, block_size, n_processors, all_pkgs,
@@ -247,15 +270,18 @@ def create_pkgs_clusters(all_pkgs, submissions, submissions_clusters,
     return pkgs_clusters
 
 
-def compress_file(output_folder, file_name):
-    compressed_file_name = '{}.tar.xz'.format(file_name.split('.')[0])
-    compress_command = 'tar c {} | xz > {}'.format(file_name,
-                                                   compressed_file_name)
-    if os.path.exists(output_folder + compressed_file_name):
-        os.remove(output_folder + compressed_file_name)
+def compress_file(output_folder, file_path):
+    compressed_file_path = '{}.tar.xz'.format(file_path.split('.')[0])
+    compressed_file_path = output_folder + compressed_file_path
 
-    commands.getoutput(compress_command)
-    os.remove(file_name)
+    if os.path.exists(compressed_file_path):
+        os.remove(compressed_file_path)
+
+    tar = tarfile.open(compressed_file_path, 'w:xz')
+    tar.add(file_path)
+    tar.close()
+
+    os.remove(file_path)
 
 
 def save_clusters(clusters, output_folder):
@@ -305,7 +331,8 @@ def generate_inrelease_file(output_folder):
     if os.path.exists(output_folder + 'InRelease'):
         os.remove(output_folder + 'InRelease')
 
-    commands.getoutput(inrelease_command)
+    subprocess.check_output(inrelease_command, shell=True,
+                            stderr=subprocess.STDOUT)
     shutil.move('InRelease', output_folder)
 
 
@@ -313,18 +340,18 @@ def save_data(all_pkgs, clusters, pkgs_clusters, output_folder):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
-    print "Saving clusters.tar.xz"
+    print("Saving clusters.tar.xz")
     save_clusters(clusters, output_folder)
 
-    print "Saving pkgs_clusters.tar.xz"
+    print("Saving pkgs_clusters.tar.xz")
     save_pkgs_clusters(all_pkgs, pkgs_clusters, output_folder)
 
-    print "Generating InRelease file"
+    print("Generating InRelease file")
     generate_inrelease_file(output_folder)
 
     move_compressed_file(output_folder, CLUSTERS_FILE)
     move_compressed_file(output_folder, PKGS_CLUSTERS)
-    print "Finish, files saved on: {}".format(output_folder)
+    print("Finish, files saved on: {}".format(output_folder))
 
 
 def generate_kmeans_data(n_clusters, random_state, n_processors, submissions):
@@ -340,25 +367,25 @@ def generate_kmeans_data(n_clusters, random_state, n_processors, submissions):
 def main(random_state, n_clusters, n_processors, popcon_entries_path,
          output_folder):
 
-    print "Loading all packages"
+    print("Loading all packages")
     all_pkgs = get_all_pkgs()
 
-    print "Loading popcon submissions"
+    print("Loading popcon submissions")
     submissions = get_popcon_submissions(all_pkgs, popcon_entries_path,
                                          n_processors)
 
-    print "Discarding non popular packages"
+    print("Discarding non popular packages")
     all_pkgs, submissions = discard_nonpupular_pkgs(all_pkgs, submissions)
 
-    print "Filter little used packages"
+    print("Filter little used packages")
     all_pkgs, submissions = filter_little_used_packages(all_pkgs, submissions)
 
-    print "Creating KMeans data"
+    print("Creating KMeans data")
     data = generate_kmeans_data(n_clusters, random_state, n_processors,
                                 submissions)
     clusters, submissions_clusters = data
 
-    print "Creating packages clusters"
+    print("Creating packages clusters")
     pkgs_clusters = create_pkgs_clusters(all_pkgs, submissions,
                                          submissions_clusters, len(clusters))
 
@@ -367,6 +394,8 @@ def main(random_state, n_clusters, n_processors, popcon_entries_path,
 
 def get_expand_folder_path(folder_path):
     expand_folder_path = os.path.expanduser(folder_path)
+    expand_folder_path = os.path.abspath(expand_folder_path)
+
     if expand_folder_path[-1] != '/':
         expand_folder_path += '/'
 
@@ -402,7 +431,7 @@ if __name__ == '__main__':
     args.popcon_entries_path = get_expand_folder_path(args.popcon_entries_path)
 
     if not os.path.exists(args.popcon_entries_path):
-        print "Folder not exists: {}".format(args.popcon_entries_path)
+        print("Folder not exists: {}".format(args.popcon_entries_path))
         exit(1)
 
     main(args.random_state, args.n_clusters, args.n_processors,
