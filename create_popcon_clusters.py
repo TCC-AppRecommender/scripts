@@ -18,8 +18,13 @@ from multiprocessing import Process, Queue, Manager
 from sklearn.cluster import MiniBatchKMeans
 
 
+INRELEASE_FILE = 'InRelease'
+
 CLUSTERS_FILE = 'clusters.txt'
 PKGS_CLUSTERS = 'pkgs_clusters.txt'
+
+CLUSTERS_FILE_TAR = 'clusters.tar.xz'
+PKGS_CLUSTERS_TAR = 'pkgs_clusters.tar.xz'
 
 CLUSTERS_FILE_TAR = 'clusters.tar.xz'
 
@@ -271,13 +276,12 @@ def create_pkgs_clusters(all_pkgs, submissions, submissions_clusters,
 
 
 def compress_file(output_folder, file_path):
-    compressed_file_path = '{}.tar.xz'.format(file_path.split('.')[0])
-    compressed_file_path = output_folder + compressed_file_path
+    compressed_file_name = '{}.tar.xz'.format(file_path.split('.')[0])
 
-    if os.path.exists(compressed_file_path):
-        os.remove(compressed_file_path)
+    if os.path.exists(compressed_file_name):
+        os.remove(compressed_file_name)
 
-    tar = tarfile.open(compressed_file_path, 'w:xz')
+    tar = tarfile.open(compressed_file_name, 'w:xz')
     tar.add(file_path)
     tar.close()
 
@@ -317,28 +321,34 @@ def save_pkgs_clusters(all_pkgs, pkgs_clusters, output_folder):
     compress_file(output_folder, PKGS_CLUSTERS)
 
 
-def move_compressed_file(output_folder, original_file_name):
-    original_file_name = original_file_name.split('.')[0]
-    compressed_file_name = '{}.tar.xz'.format(original_file_name)
-
-    if not os.path.exists(output_folder + compressed_file_name):
-        shutil.move(compressed_file_name, output_folder)
+def move_compressed_file(output_folder, file_name):
+    if not os.path.exists(output_folder + file_name):
+        shutil.move(file_name, output_folder)
 
 
 def generate_inrelease_file(output_folder):
-    inrelease_command = 'sha256sum *.xz | gpg --clearsign > InRelease'
+    files = ' '.join([CLUSTERS_FILE_TAR, PKGS_CLUSTERS_TAR])
 
-    if os.path.exists(output_folder + 'InRelease'):
-        os.remove(output_folder + 'InRelease')
+    inrelease_command = 'sha256sum {} | gpg --clearsign > InRelease'.format(
+        files)
 
     subprocess.check_output(inrelease_command, shell=True,
                             stderr=subprocess.STDOUT)
-    shutil.move('InRelease', output_folder)
+    shutil.move(INRELEASE_FILE, output_folder)
+
+
+def remove_oldest_files(output_folder):
+    files = [CLUSTERS_FILE_TAR, PKGS_CLUSTERS_TAR, INRELEASE_FILE]
+    for file_name in files:
+        if os.path.isfile(output_folder + file_name):
+            os.remove(output_folder + file_name)
 
 
 def save_data(all_pkgs, clusters, pkgs_clusters, output_folder):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
+
+    remove_oldest_files(output_folder)
 
     print("Saving clusters.tar.xz")
     save_clusters(clusters, output_folder)
@@ -349,8 +359,8 @@ def save_data(all_pkgs, clusters, pkgs_clusters, output_folder):
     print("Generating InRelease file")
     generate_inrelease_file(output_folder)
 
-    move_compressed_file(output_folder, CLUSTERS_FILE)
-    move_compressed_file(output_folder, PKGS_CLUSTERS)
+    shutil.move(CLUSTERS_FILE_TAR, output_folder)
+    shutil.move(PKGS_CLUSTERS_TAR, output_folder)
     print("Finish, files saved on: {}".format(output_folder))
 
 
