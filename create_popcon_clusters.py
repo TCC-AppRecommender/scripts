@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 import argparse
+import hashlib
 import glob
-import lzma
 import os
 import random
 import re
@@ -104,10 +104,9 @@ def get_submissions_matrix(all_pkgs, submissions_paths, n_readed_submissions,
 
     n_file = 0
     for file_path in submissions_paths:
-        command = 'cat {}'.format(file_path)
-        text = subprocess.check_output(command, shell=True,
-                                       stderr=subprocess.STDOUT)
-        text = text.decode('utf-8')
+        ifile = open(file_path, 'rb')
+        text = ifile.read().decode('utf-8')
+        ifile.close()
 
         pkgs = pkg_regex.findall(text)
         indices = np.where(np.in1d(all_pkgs_np, pkgs))[0]
@@ -326,11 +325,29 @@ def move_compressed_file(output_folder, file_name):
         shutil.move(file_name, output_folder)
 
 
-def generate_inrelease_file(output_folder):
-    files = ' '.join([CLUSTERS_FILE_TAR, PKGS_CLUSTERS_TAR])
+def get_sha256sum():
+    files = [CLUSTERS_FILE_TAR, PKGS_CLUSTERS_TAR]
 
-    inrelease_command = 'sha256sum {} | gpg --clearsign > InRelease'.format(
-        files)
+    sha256sum = ''
+    for file_name in files:
+        ifile = open(file_name, 'rb')
+        content = ifile.read()
+        ifile.close()
+
+        checksum = hashlib.sha256(content).hexdigest()
+
+        sha256sum += '{}  {}\n'.format(checksum, file_name)
+
+    sha256sum = sha256sum[:-1]
+
+    return sha256sum
+
+
+def generate_inrelease_file(output_folder):
+    sha256sum = get_sha256sum()
+
+    inrelease_command = 'echo "{}" | gpg --clearsign > InRelease'.format(
+        sha256sum)
 
     subprocess.check_output(inrelease_command, shell=True,
                             stderr=subprocess.STDOUT)
