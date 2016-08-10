@@ -33,8 +33,18 @@ MIRROR_BASE = '/srv/mirrors/debian'
 
 PERCENT_USERS_FOR_RATE = 0.05
 
+VERBOSE = False
+
+
+def verbose_print(message):
+    if VERBOSE:
+        print(message)
+
 
 def print_percentage(number, n_numbers, message='Percent', bar_length=40):
+    if not VERBOSE:
+        return
+
     percent = float(number) / float(n_numbers)
     hashes = '#' * int(round(percent * bar_length))
     spaces = ' ' * (bar_length - len(hashes))
@@ -82,10 +92,10 @@ def get_all_pkgs():
     stable_mirror = mirror.format(MIRROR_BASE, 'stable')
     unstable_mirror = mirror.format(MIRROR_BASE, 'unstable')
 
-    print('Loading packages names of Debian stable')
+    verbose_print('Loading packages names of Debian stable')
     all_pkgs |= read_pkgs_from_mirror(stable_mirror)
 
-    print('Loading packages names of Debian unstable')
+    verbose_print('Loading packages names of Debian unstable')
     all_pkgs |= read_pkgs_from_mirror(unstable_mirror)
 
     all_pkgs = sorted(list(all_pkgs))
@@ -357,7 +367,7 @@ def generate_inrelease_file(output_folder, gnupg_home):
         signed_data = gpg.sign(sha256sum, passphrase=passphrase,
                                clearsign=True)
         if len(signed_data.data) == 0:
-            print('Wrong passphrase')
+            verbose_print('Wrong passphrase')
 
     with open(output_folder + INRELEASE_FILE, 'w') as ifile:
         ifile.write(signed_data.data.decode('utf-8'))
@@ -376,18 +386,19 @@ def save_data(all_pkgs, clusters, pkgs_clusters, output_folder, gnupg_home):
 
     remove_oldest_files(output_folder)
 
-    print("Saving clusters.tar.xz")
+    verbose_print("Saving clusters.tar.xz")
     save_clusters(clusters, output_folder)
 
-    print("Saving pkgs_clusters.tar.xz")
+    verbose_print("Saving pkgs_clusters.tar.xz")
     save_pkgs_clusters(all_pkgs, pkgs_clusters, output_folder)
 
-    print("Generating InRelease file")
+    verbose_print("Generating InRelease file")
     generate_inrelease_file(output_folder, gnupg_home)
 
     shutil.move(CLUSTERS_FILE_TAR, output_folder)
     shutil.move(PKGS_CLUSTERS_TAR, output_folder)
-    print("Finish, files saved on: {}".format(output_folder))
+    finish_message = "Create clusters finished, files saved on: {}"
+    print(finish_message.format(output_folder))
 
 
 def generate_kmeans_data(n_clusters, random_state, n_processors, submissions):
@@ -403,25 +414,25 @@ def generate_kmeans_data(n_clusters, random_state, n_processors, submissions):
 def main(random_state, n_clusters, n_processors, popcon_entries_path,
          output_folder, gnupg_home):
 
-    print("Loading all packages")
+    verbose_print("Loading all packages")
     all_pkgs = get_all_pkgs()
 
-    print("Loading popcon submissions")
+    verbose_print("Loading popcon submissions")
     submissions = get_popcon_submissions(all_pkgs, popcon_entries_path,
                                          n_processors)
 
-    print("Discarding non popular packages")
+    verbose_print("Discarding non popular packages")
     all_pkgs, submissions = discard_nonpupular_pkgs(all_pkgs, submissions)
 
-    print("Filter little used packages")
+    verbose_print("Filter little used packages")
     all_pkgs, submissions = filter_little_used_packages(all_pkgs, submissions)
 
-    print("Creating KMeans data")
+    verbose_print("Creating KMeans data")
     data = generate_kmeans_data(n_clusters, random_state, n_processors,
                                 submissions)
     clusters, submissions_clusters = data
 
-    print("Creating packages clusters")
+    verbose_print("Creating packages clusters")
     pkgs_clusters = create_pkgs_clusters(all_pkgs, submissions,
                                          submissions_clusters, len(clusters))
 
@@ -462,6 +473,10 @@ def create_parser():
     parser.add_argument('-r', '--random_state', type=int, metavar='',
                         default=170, help='Number of processors to be used')
 
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help='Disable recommendations when install a package '
+                             'with apt')
+
     return parser
 
 
@@ -477,8 +492,10 @@ if __name__ == '__main__':
     args.popcon_entries_path = get_expand_folder_path(args.popcon_entries_path)
     args.gnupg_home = get_expand_folder_path(args.gnupg_home)
 
+    VERBOSE = args.verbose
+
     if not os.path.exists(args.popcon_entries_path):
-        print("Folder not exists: {}".format(args.popcon_entries_path))
+        verbose_print("Folder not exists: {}".format(args.popcon_entries_path))
         exit(1)
 
     main(args.random_state, args.n_clusters, args.n_processors,
