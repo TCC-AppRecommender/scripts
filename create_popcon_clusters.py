@@ -344,10 +344,9 @@ def get_sha256sum():
     return sha256sum
 
 
-def generate_inrelease_file(output_folder):
+def generate_inrelease_file(output_folder, gnupg_home):
     sha256sum = get_sha256sum()
 
-    gnupg_home = os.path.expanduser('~/.gnupg')
     gpg = gnupg.GPG(gnupghome=gnupg_home)
     gpg.encoding = 'utf-8'
 
@@ -371,7 +370,7 @@ def remove_oldest_files(output_folder):
             os.remove(output_folder + file_name)
 
 
-def save_data(all_pkgs, clusters, pkgs_clusters, output_folder):
+def save_data(all_pkgs, clusters, pkgs_clusters, output_folder, gnupg_home):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
@@ -384,7 +383,7 @@ def save_data(all_pkgs, clusters, pkgs_clusters, output_folder):
     save_pkgs_clusters(all_pkgs, pkgs_clusters, output_folder)
 
     print("Generating InRelease file")
-    generate_inrelease_file(output_folder)
+    generate_inrelease_file(output_folder, gnupg_home)
 
     shutil.move(CLUSTERS_FILE_TAR, output_folder)
     shutil.move(PKGS_CLUSTERS_TAR, output_folder)
@@ -402,7 +401,7 @@ def generate_kmeans_data(n_clusters, random_state, n_processors, submissions):
 
 
 def main(random_state, n_clusters, n_processors, popcon_entries_path,
-         output_folder):
+         output_folder, gnupg_home):
 
     print("Loading all packages")
     all_pkgs = get_all_pkgs()
@@ -426,7 +425,7 @@ def main(random_state, n_clusters, n_processors, popcon_entries_path,
     pkgs_clusters = create_pkgs_clusters(all_pkgs, submissions,
                                          submissions_clusters, len(clusters))
 
-    save_data(all_pkgs, clusters, pkgs_clusters, output_folder)
+    save_data(all_pkgs, clusters, pkgs_clusters, output_folder, gnupg_home)
 
 
 def get_expand_folder_path(folder_path):
@@ -441,15 +440,25 @@ def get_expand_folder_path(folder_path):
 
 def create_parser():
     parser = argparse.ArgumentParser()
+
     parser.add_argument('popcon_entries_path', type=str,
                         help='path of folder with the popularity-contest '
                              'submissions')
+
     parser.add_argument('-o', '--output', type=str, metavar='',
                         default='.', help='path of folder to output data')
+
+    default_gnupg_home = os.path.expanduser('~/.gnupg')
+    parser.add_argument('-g', '--gnupg-home', type=str, metavar='',
+                        default=default_gnupg_home, help='path of folder to '
+                                                         'output data')
+
     parser.add_argument('-c', '--n_clusters', type=int, metavar='',
                         default=200, help='Number of clusters are been used')
+
     parser.add_argument('-p', '--n_processors', type=int, metavar='',
                         default=1, help='Number of processors to be used')
+
     parser.add_argument('-r', '--random_state', type=int, metavar='',
                         default=170, help='Number of processors to be used')
 
@@ -466,10 +475,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
     args.output = get_expand_folder_path(args.output)
     args.popcon_entries_path = get_expand_folder_path(args.popcon_entries_path)
+    args.gnupg_home = get_expand_folder_path(args.gnupg_home)
 
     if not os.path.exists(args.popcon_entries_path):
         print("Folder not exists: {}".format(args.popcon_entries_path))
         exit(1)
 
     main(args.random_state, args.n_clusters, args.n_processors,
-         args.popcon_entries_path, args.output)
+         args.popcon_entries_path, args.output, args.gnupg_home)
