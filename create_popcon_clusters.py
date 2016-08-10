@@ -474,8 +474,8 @@ def create_parser():
                         default=170, help='Number of processors to be used')
 
     parser.add_argument('-v', '--verbose', action='store_true',
-                        help='Disable recommendations when install a package '
-                             'with apt')
+                        help='Show messages during the clusterization'
+                             ' process')
 
     return parser
 
