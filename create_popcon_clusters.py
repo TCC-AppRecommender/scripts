@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 
 import argparse
-import hashlib
+import getpass
 import glob
+import gnupg
+import hashlib
 import os
 import random
 import re
 import shutil
-import subprocess
 import sys
 import tarfile
 
@@ -346,12 +347,21 @@ def get_sha256sum():
 def generate_inrelease_file(output_folder):
     sha256sum = get_sha256sum()
 
-    inrelease_command = 'echo "{}" | gpg --clearsign > InRelease'.format(
-        sha256sum)
+    gnupg_home = os.path.expanduser('~/.gnupg')
+    gpg = gnupg.GPG(gnupghome=gnupg_home)
+    gpg.encoding = 'utf-8'
 
-    subprocess.check_output(inrelease_command, shell=True,
-                            stderr=subprocess.STDOUT)
-    shutil.move(INRELEASE_FILE, output_folder)
+    signed_data = gpg.sign(sha256sum, clearsign=True)
+
+    while len(signed_data.data) == 0:
+        passphrase = getpass.getpass('GPG Passphrase: ')
+        signed_data = gpg.sign(sha256sum, passphrase=passphrase,
+                               clearsign=True)
+        if len(signed_data.data) == 0:
+            print('Wrong passphrase')
+
+    with open(output_folder + INRELEASE_FILE, 'w') as ifile:
+        ifile.write(signed_data.data.decode('utf-8'))
 
 
 def remove_oldest_files(output_folder):
