@@ -367,7 +367,7 @@ def generate_inrelease_file(output_folder, gnupg_home):
         signed_data = gpg.sign(sha256sum, passphrase=passphrase,
                                clearsign=True)
         if len(signed_data.data) == 0:
-            verbose_print('Wrong passphrase')
+            print('Wrong passphrase')
 
     with open(output_folder + INRELEASE_FILE, 'w') as ifile:
         ifile.write(signed_data.data.decode('utf-8'))
@@ -495,7 +495,7 @@ if __name__ == '__main__':
     VERBOSE = args.verbose
 
     if not os.path.exists(args.popcon_entries_path):
-        verbose_print("Folder not exists: {}".format(args.popcon_entries_path))
+        print("Folder not exists: {}".format(args.popcon_entries_path))
         exit(1)
 
     main(args.random_state, args.n_clusters, args.n_processors,
