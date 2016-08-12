@@ -10,7 +10,7 @@ import random
 import re
 import shutil
 import sys
-import tarfile
+import lzma
 
 import numpy as np
 import scipy.sparse as sp
@@ -24,10 +24,8 @@ INRELEASE_FILE = 'InRelease'
 CLUSTERS_FILE = 'clusters.txt'
 PKGS_CLUSTERS = 'pkgs_clusters.txt'
 
-CLUSTERS_FILE_TAR = 'clusters.tar.xz'
-PKGS_CLUSTERS_TAR = 'pkgs_clusters.tar.xz'
-
-CLUSTERS_FILE_TAR = 'clusters.tar.xz'
+CLUSTERS_FILE_TAR = 'clusters.xz'
+PKGS_CLUSTERS_TAR = 'pkgs_clusters.xz'
 
 MIRROR_BASE = '/srv/mirrors/debian'
 
@@ -61,15 +59,10 @@ def print_percentage(number, n_numbers, message='Percent', bar_length=40):
         print('\n')
 
 
-def get_tarfile_text(tarfile_path):
-    text = ''
-    tar = tarfile.open(tarfile_path)
-
-    for member in tar.members:
-        ifile = tar.extractfile(member)
-        text = ifile.read().decode('utf-8')
-
-    tar.close()
+def get_compressed_file_text(file_path):
+    ifile = lzma.open(file_path, 'rb')
+    text = ifile.read().decode('utf-8')
+    ifile.close()
 
     return text
 
@@ -80,7 +73,7 @@ def read_pkgs_from_mirror(mirror_path):
     pkgs_regex = re.compile(r'^Package:\s(.+)', re.MULTILINE)
 
     for file_path in glob_mirror_path:
-        text = get_tarfile_text(file_path)
+        text = get_compressed_file_text(file_path)
         pkgs |= set(pkgs_regex.findall(text))
 
     return pkgs
@@ -286,14 +279,15 @@ def create_pkgs_clusters(all_pkgs, submissions, submissions_clusters,
 
 
 def compress_file(output_folder, file_path):
-    compressed_file_name = '{}.tar.xz'.format(file_path.split('.')[0])
+    compressed_file_name = '{}.xz'.format(file_path.split('.')[0])
 
     if os.path.exists(compressed_file_name):
         os.remove(compressed_file_name)
 
-    tar = tarfile.open(compressed_file_name, 'w:xz')
-    tar.add(file_path)
-    tar.close()
+    with open(file_path, 'rb') as input_file:
+        with open(compressed_file_name, 'wb') as output_file:
+            data = lzma.compress(bytes(input_file.read()))
+            output_file.write(data)
 
     os.remove(file_path)
 
@@ -386,10 +380,10 @@ def save_data(all_pkgs, clusters, pkgs_clusters, output_folder, gnupg_home):
 
     remove_oldest_files(output_folder)
 
-    verbose_print("Saving clusters.tar.xz")
+    verbose_print("Saving clusters.xz")
     save_clusters(clusters, output_folder)
 
-    verbose_print("Saving pkgs_clusters.tar.xz")
+    verbose_print("Saving pkgs_clusters.xz")
     save_pkgs_clusters(all_pkgs, pkgs_clusters, output_folder)
 
     verbose_print("Generating InRelease file")
