@@ -23,10 +23,10 @@ from sklearn.cluster import MiniBatchKMeans
 INRELEASE_FILE = 'InRelease'
 
 CLUSTERS_FILE = 'clusters.txt'
-PKGS_CLUSTERS = 'pkgs_clusters.txt'
+PKGS_CLUSTERS_FILE = 'pkgs_clusters.txt'
 
-CLUSTERS_FILE_TAR = 'clusters.xz'
-PKGS_CLUSTERS_TAR = 'pkgs_clusters.xz'
+CLUSTERS_FILE_XZ = 'clusters.xz'
+PKGS_CLUSTERS_XZ = 'pkgs_clusters.xz'
 
 MIRROR_BASE = '/srv/mirrors/debian'
 
@@ -320,10 +320,10 @@ def save_pkgs_clusters(all_pkgs, pkgs_clusters, output_folder):
         lines.append(line)
         print_percentage(index + 1, pkgs_clusters.shape[0])
 
-    with open(PKGS_CLUSTERS, 'w') as text:
+    with open(PKGS_CLUSTERS_FILE, 'w') as text:
         text.write("\n".join(lines))
 
-    compress_file(output_folder, PKGS_CLUSTERS)
+    compress_file(output_folder, PKGS_CLUSTERS_FILE)
 
 
 def move_compressed_file(output_folder, file_name):
@@ -332,7 +332,7 @@ def move_compressed_file(output_folder, file_name):
 
 
 def get_sha256sum():
-    files = [CLUSTERS_FILE_TAR, PKGS_CLUSTERS_TAR]
+    files = [CLUSTERS_FILE_XZ, PKGS_CLUSTERS_XZ]
 
     sha256sum = ''
     for file_name in files:
@@ -369,14 +369,14 @@ def generate_inrelease_file(output_folder, gnupg_home):
 
 
 def remove_oldest_files(output_folder):
-    files = [CLUSTERS_FILE_TAR, PKGS_CLUSTERS_TAR, INRELEASE_FILE]
+    files = [CLUSTERS_FILE_XZ, PKGS_CLUSTERS_XZ, INRELEASE_FILE]
     for file_name in files:
         if os.path.isfile(output_folder + file_name):
             os.remove(output_folder + file_name)
 
 
 def version_data(output_folder):
-    files = [CLUSTERS_FILE_TAR, PKGS_CLUSTERS_TAR, INRELEASE_FILE]
+    files = [CLUSTERS_FILE_XZ, PKGS_CLUSTERS_XZ, INRELEASE_FILE]
 
     date = time.strftime("%Y-%m-%d")
     folder = output_folder + date
