@@ -11,6 +11,7 @@ import random
 import re
 import shutil
 import sys
+import time
 
 import numpy as np
 import scipy.sparse as sp
@@ -363,7 +364,7 @@ def generate_inrelease_file(output_folder, gnupg_home):
         if len(signed_data.data) == 0:
             print('Wrong passphrase')
 
-    with open(output_folder + INRELEASE_FILE, 'w') as ifile:
+    with open(INRELEASE_FILE, 'w') as ifile:
         ifile.write(signed_data.data.decode('utf-8'))
 
 
@@ -374,23 +375,42 @@ def remove_oldest_files(output_folder):
             os.remove(output_folder + file_name)
 
 
+def version_data(output_folder):
+    files = [CLUSTERS_FILE_TAR, PKGS_CLUSTERS_TAR, INRELEASE_FILE]
+
+    date = time.strftime("%Y-%m-%d")
+    folder = output_folder + date
+    if os.path.exists(folder):
+        shutil.rmtree(folder)
+    os.makedirs(folder)
+
+    for file_name in files:
+        shutil.move(file_name, folder)
+
+    symbolic_link = output_folder + 'latest'
+    if os.path.exists(symbolic_link):
+        os.remove(symbolic_link)
+    os.symlink(folder, symbolic_link)
+
+
 def save_data(all_pkgs, clusters, pkgs_clusters, output_folder, gnupg_home):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
     remove_oldest_files(output_folder)
 
-    verbose_print("Saving clusters.xz")
+    verbose_print("Creating clusters.xz")
     save_clusters(clusters, output_folder)
 
-    verbose_print("Saving pkgs_clusters.xz")
+    verbose_print("Creating pkgs_clusters.xz")
     save_pkgs_clusters(all_pkgs, pkgs_clusters, output_folder)
 
     verbose_print("Generating InRelease file")
     generate_inrelease_file(output_folder, gnupg_home)
 
-    shutil.move(CLUSTERS_FILE_TAR, output_folder)
-    shutil.move(PKGS_CLUSTERS_TAR, output_folder)
+    verbose_print("Versioning data")
+    version_data(output_folder)
+
     finish_message = "Create clusters finished, files saved on: {}"
     print(finish_message.format(output_folder))
 
