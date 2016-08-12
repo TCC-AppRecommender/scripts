@@ -5,12 +5,12 @@ import getpass
 import glob
 import gnupg
 import hashlib
+import lzma
 import os
 import random
 import re
 import shutil
 import sys
-import lzma
 
 import numpy as np
 import scipy.sparse as sp
@@ -317,7 +317,7 @@ def save_pkgs_clusters(all_pkgs, pkgs_clusters, output_folder):
                                 if times > 0))
         line = "{}-{}".format(all_pkgs[index], str_clusters)
         lines.append(line)
-        print_percentage(index, pkgs_clusters.shape[0])
+        print_percentage(index + 1, pkgs_clusters.shape[0])
 
     with open(PKGS_CLUSTERS, 'w') as text:
         text.write("\n".join(lines))
